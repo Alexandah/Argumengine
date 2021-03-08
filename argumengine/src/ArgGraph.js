@@ -16,27 +16,58 @@ const Node = (props) => {
       fill={"white"}
       stroke={"black"}
       strokeWidth={4}
+      onMouseDown={() => props.toggleSelected(this)}
     ></Circle>
   );
 };
 
-class ArgGraph extends React.Component {
-  state = {
-    nodes: [],
-    arguments: [],
-    conflicts: [],
+const ArgGraph = () => {
+  const [nodes, setNodes] = React.useState([]);
+  const [args, setArgs] = React.useState([]);
+  const [conflicts, setConflicts] = React.useState([]);
+
+  const [selected, setSelected] = React.useState([]);
+
+  const toggleSelected = (item) => {
+    let index = selected.indexOf(item);
+    let inArray = index !== -1;
+    if (inArray) setSelected(selected.filter((x, i) => i !== index));
+    else setSelected(selected.concat(item));
+    console.log("filter: " + selected.filter((x, i) => i !== index));
+    console.log("concat: " + selected.concat(item));
+    console.log("item: " + item);
+    console.log("selected: " + selected);
   };
 
-  handleDoubleClick = () => {};
-  render() {
-    return (
-      <Stage width={500} height={500}>
-        <Layer>
-          <Node x={250} y={250}></Node>
-        </Layer>
-      </Stage>
+  const [mousePos, setMousePos] = React.useState();
+  const trackMouse = (e) => {
+    var pos = e.currentTarget.getPointerPosition();
+    setMousePos(pos);
+  };
+
+  const spawnNode = () => {
+    setNodes(
+      nodes.concat(
+        <Node
+          x={mousePos.x}
+          y={mousePos.y}
+          toggleSelected={toggleSelected}
+        ></Node>
+      )
     );
-  }
-}
+    console.log(nodes);
+  };
+
+  return (
+    <Stage
+      width={window.innerWidth}
+      height={window.innerHeight}
+      onMouseMove={trackMouse}
+      onDblClick={spawnNode}
+    >
+      <Layer>{nodes}</Layer>
+    </Stage>
+  );
+};
 
 export default ArgGraph;
