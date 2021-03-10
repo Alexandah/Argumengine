@@ -1,13 +1,98 @@
-import React from "react";
-import { Stage, Layer, Circle, Text } from "react-konva";
+import React, { useState, useEffect } from "react";
+import { Stage, Layer, Circle, Text, Rect, Group } from "react-konva";
 import Konva from "konva";
 
 const Node = (props) => {
-  const [text, setText] = React.useState();
+  const [text, setText] = useState("");
+  const [editing, setEditing] = useState(false);
+
+  const selectedShadowOpacity = 0.7;
+  const [shadowOpacity, setShadowOpacity] = useState(0);
+  //turn on shadow if node is selected
+  useEffect(() => {
+    if (props.selected) setShadowOpacity(selectedShadowOpacity);
+    else setShadowOpacity(0);
+  }, [props.selected]);
+
+  const maxWidth = 150;
+  const minWidth = 100;
+  const minHeight = minWidth / 2;
+  const lettersPerPixelHorizontal = 25 / 100;
+  const lettersPerLine = lettersPerPixelHorizontal * 100;
+  const verticalPixelsPerLine = 15;
+  const getLines = () => {
+    let letters = text.length;
+    var lines = 0;
+    while (letters - lettersPerLine > 0) {
+      lines++;
+      letters -= lettersPerLine;
+    }
+    return lines;
+  };
+  const [width, setWidth] = React.useState(minWidth);
+  const [height, setHeight] = React.useState(minHeight);
+
+  const updateNodeSize = () => {
+    let letters = text.length;
+    let newWidth = letters / lettersPerPixelHorizontal;
+    let newHeight = getLines() * verticalPixelsPerLine;
+    newWidth = minWidth > newWidth ? minWidth : newWidth;
+    newWidth = newWidth > maxWidth ? maxWidth : newWidth;
+    newHeight = minHeight > newHeight ? minHeight : newHeight;
+    setWidth(newWidth);
+    setHeight(newHeight);
+  };
+
+  useEffect(() => {
+    updateNodeSize();
+  }, [text]);
+
+  //for scaling the text editing box
+  const getRows = () => {
+    return Math.max(getLines(), 3);
+  };
+  const colsPerPixelHorizontal = 20 / 150;
+  const getCols = () => {
+    if (width == maxWidth) return 20;
+    let letters = text.length;
+    let horizontalPixels = letters / lettersPerPixelHorizontal;
+    let cols = Math.round(horizontalPixels * colsPerPixelHorizontal);
+    console.log(cols);
+    if (cols < 13) return 13;
+    return cols;
+  };
+
+  const editText = (obj) => {
+    console.log(editing);
+    var textNode = obj.currentTarget;
+    var textPosition = textNode.getAbsolutePosition();
+    var textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "absolute";
+    textarea.style.top = textPosition.y + "px";
+    textarea.style.left = textPosition.x + "px";
+    textarea.cols = getCols();
+    textarea.rows = getRows();
+    console.log("text area. cols=" + textarea.cols + " rows=" + textarea.rows);
+    document.body.appendChild(textarea);
+    textarea.focus();
+    function endTextEdit() {
+      //if (editing) {
+      setText(textarea.value);
+      document.body.removeChild(textarea);
+      setEditing(false);
+      //}
+    }
+    textarea.addEventListener("keydown", function (e) {
+      if (e.keyCode === 13) endTextEdit();
+    });
+    textarea.addEventListener("focusout", function (e) {
+      //endTextEdit();
+    });
+  };
 
   return (
-    <Text
-      text={"x: " + props.x + " y: " + props.y}
+    <Group
       x={props.x}
       y={props.y}
       draggable
@@ -16,7 +101,30 @@ const Node = (props) => {
         var pos = e.currentTarget.getAbsolutePosition();
         props.updateNodePos(props.id, pos.x, pos.y);
       }}
-    ></Text>
+    >
+      <Rect
+        stroke={"black"}
+        width={width}
+        height={height}
+        fill={"#F3F3F3"}
+        cornerRadius={10}
+        shadowBlur={10}
+        shadowColor={"black"}
+        shadowOffsetX={15}
+        shadowOffsetY={15}
+        shadowOpacity={shadowOpacity}
+      ></Rect>
+      <Text
+        text={text}
+        align={"center"}
+        height={height}
+        width={width}
+        onClick={(e) => {
+          setEditing(true);
+          editText(e);
+        }}
+      ></Text>
+    </Group>
   );
 };
 
@@ -62,7 +170,6 @@ const ArgGraph = () => {
         } else return node;
       })
     );
-    console.log(nodes);
   };
 
   const deleteNode = (node) => {
@@ -85,6 +192,7 @@ const ArgGraph = () => {
               id={i}
               x={node.x}
               y={node.y}
+              selected={node.selected}
               toggleSelected={toggleSelected}
               updateNodePos={updateNodePos}
             ></Node>
