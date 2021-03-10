@@ -8,7 +8,7 @@ const Node = (props) => {
 
   const selectedShadowOpacity = 0.7;
   const [shadowOpacity, setShadowOpacity] = useState(0);
-  //turn on shadow if node is selected
+  //turn on shadow iff node is selected
   useEffect(() => {
     if (props.selected) setShadowOpacity(selectedShadowOpacity);
     else setShadowOpacity(0);
@@ -57,13 +57,14 @@ const Node = (props) => {
     let letters = text.length;
     let horizontalPixels = letters / lettersPerPixelHorizontal;
     let cols = Math.round(horizontalPixels * colsPerPixelHorizontal);
-    console.log(cols);
     if (cols < 13) return 13;
     return cols;
   };
 
+  //Since Konva does not support placing a text editing
+  //object directly into a group, we have to manually create
+  //one on top of it using javascript :(
   const editText = (obj) => {
-    console.log(editing);
     var textNode = obj.currentTarget;
     var textPosition = textNode.getAbsolutePosition();
     var textarea = document.createElement("textarea");
@@ -73,7 +74,6 @@ const Node = (props) => {
     textarea.style.left = textPosition.x + "px";
     textarea.cols = getCols();
     textarea.rows = getRows();
-    console.log("text area. cols=" + textarea.cols + " rows=" + textarea.rows);
     document.body.appendChild(textarea);
     textarea.focus();
     function endTextEdit() {
@@ -101,6 +101,7 @@ const Node = (props) => {
         var pos = e.currentTarget.getAbsolutePosition();
         props.updateNodePos(props.id, pos.x, pos.y);
       }}
+      onClick={() => props.deleteNode(props.id)}
     >
       <Rect
         stroke={"black"}
@@ -172,8 +173,8 @@ const ArgGraph = () => {
     );
   };
 
-  const deleteNode = (node) => {
-    setNodes(nodes.filter((x, i) => i !== nodes.indexOf(node)));
+  const deleteNode = (selectedIndex) => {
+    setNodes(nodes.filter((node, i) => i !== selectedIndex));
     console.log(nodes);
   };
 
@@ -195,6 +196,7 @@ const ArgGraph = () => {
               selected={node.selected}
               toggleSelected={toggleSelected}
               updateNodePos={updateNodePos}
+              deleteNode={deleteNode}
             ></Node>
           );
         })}
