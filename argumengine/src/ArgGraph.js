@@ -10,6 +10,7 @@ const Node = (props) => {
   const [showEditorPanel, setShowEditorPanel] = useState(false);
   const iconScale = 0.7;
   const [editIcon] = useImage("/editicon.png");
+  const deleteIconVerticalOffset = 27;
   const [deleteIcon] = useImage("/deleteicon.png");
 
   const selectedShadowOpacity = 0.7;
@@ -142,7 +143,7 @@ const Node = (props) => {
         image={deleteIcon}
         stroke={"red"}
         x={width}
-        y={height / 2}
+        y={deleteIconVerticalOffset}
         scaleX={iconScale}
         scaleY={iconScale}
         visible={showEditorPanel}
