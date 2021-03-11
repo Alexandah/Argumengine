@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Stage, Layer, Circle, Text, Rect, Group } from "react-konva";
+import { Stage, Layer, Circle, Text, Rect, Group, Image } from "react-konva";
 import Konva from "konva";
 
 const Node = (props) => {
   const [text, setText] = useState("");
   const [editing, setEditing] = useState(false);
+
+  const [showEditorPanel, setShowEditorPanel] = useState(false);
 
   const selectedShadowOpacity = 0.7;
   const [shadowOpacity, setShadowOpacity] = useState(0);
@@ -65,8 +67,11 @@ const Node = (props) => {
   //object directly into a group, we have to manually create
   //one on top of it using javascript :(
   const editText = (obj) => {
-    var textNode = obj.currentTarget;
-    var textPosition = textNode.getAbsolutePosition();
+    var editButton = obj.currentTarget;
+    var textPosition = editButton.getAbsolutePosition();
+    //adjusting back to the beginning of the node
+    textPosition.x -= width;
+    console.log(textPosition);
     var textarea = document.createElement("textarea");
     textarea.value = text;
     textarea.style.position = "absolute";
@@ -101,7 +106,8 @@ const Node = (props) => {
         var pos = e.currentTarget.getAbsolutePosition();
         props.updateNodePos(props.id, pos.x, pos.y);
       }}
-      onClick={() => props.deleteNode(props.id)}
+      onMouseEnter={() => setShowEditorPanel(true)}
+      onMouseLeave={() => setShowEditorPanel(false)}
     >
       <Rect
         stroke={"black"}
@@ -115,16 +121,29 @@ const Node = (props) => {
         shadowOffsetY={15}
         shadowOpacity={shadowOpacity}
       ></Rect>
-      <Text
-        text={text}
-        align={"center"}
-        height={height}
-        width={width}
+      <Text text={text} align={"center"} height={height} width={width}></Text>
+      <Circle
+        stroke={"black"}
+        radius={10}
+        fill={"green"}
+        x={width}
+        visible={showEditorPanel}
         onClick={(e) => {
           setEditing(true);
           editText(e);
         }}
-      ></Text>
+      ></Circle>
+      <Circle
+        stroke={"black"}
+        radius={10}
+        fill={"red"}
+        x={width}
+        y={height}
+        visible={showEditorPanel}
+        onClick={() => {
+          props.deleteNode(props.id);
+        }}
+      ></Circle>
     </Group>
   );
 };
