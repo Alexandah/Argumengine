@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Stage, Layer, Circle, Text, Rect, Group, Image } from "react-konva";
 import Konva from "konva";
+import useImage from "use-image";
 
 const Node = (props) => {
   const [text, setText] = useState("");
   const [editing, setEditing] = useState(false);
 
   const [showEditorPanel, setShowEditorPanel] = useState(false);
+  const iconScale = 0.7;
+  const [editIcon] = useImage("/editicon.png");
+  const [deleteIcon] = useImage("/deleteicon.png");
 
   const selectedShadowOpacity = 0.7;
   const [shadowOpacity, setShadowOpacity] = useState(0);
@@ -101,7 +105,7 @@ const Node = (props) => {
       x={props.x}
       y={props.y}
       draggable
-      onMouseDown={() => props.toggleSelected(props.id)}
+      onClick={() => props.toggleSelected(props.id)}
       onDragMove={(e) => {
         var pos = e.currentTarget.getAbsolutePosition();
         props.updateNodePos(props.id, pos.x, pos.y);
@@ -122,28 +126,30 @@ const Node = (props) => {
         shadowOpacity={shadowOpacity}
       ></Rect>
       <Text text={text} align={"center"} height={height} width={width}></Text>
-      <Circle
-        stroke={"black"}
-        radius={10}
-        fill={"green"}
+      <Image
+        image={editIcon}
+        stroke={"green"}
         x={width}
+        scaleX={iconScale}
+        scaleY={iconScale}
         visible={showEditorPanel}
         onClick={(e) => {
           setEditing(true);
           editText(e);
         }}
-      ></Circle>
-      <Circle
-        stroke={"black"}
-        radius={10}
-        fill={"red"}
+      ></Image>
+      <Image
+        image={deleteIcon}
+        stroke={"red"}
         x={width}
-        y={height}
+        y={height / 2}
+        scaleX={iconScale}
+        scaleY={iconScale}
         visible={showEditorPanel}
         onClick={() => {
           props.deleteNode(props.id);
         }}
-      ></Circle>
+      ></Image>
     </Group>
   );
 };
