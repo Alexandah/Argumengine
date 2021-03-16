@@ -176,6 +176,20 @@ const ArgGraph = () => {
     return avgPoint;
   };
 
+  const getSelected = () => {
+    var selected = [];
+    for (var i = 0; i < nodes.length; i++)
+      if (nodes[i].selected) selected.push(nodes[i]);
+    return selected;
+  };
+
+  //The various kinds of edges are drawn by having each part
+  //from premise nodes meet at a central point. This is that point.
+  const computeMergePoint = () => {
+    var mergePoint = computeAveragePoint(getSelected());
+    return mergePoint;
+  };
+
   const toggleSelected = (selectedIndex) => {
     setNodes(
       nodes.map((node, index) => {
@@ -193,11 +207,11 @@ const ArgGraph = () => {
     setMousePos(pos);
   };
 
-  const spawnNode = () => {
+  const spawnNode = (pos) => {
     setNodes(
       nodes.concat({
-        x: mousePos.x,
-        y: mousePos.y,
+        x: pos.x,
+        y: pos.y,
         selected: false,
       })
     );
@@ -225,7 +239,7 @@ const ArgGraph = () => {
       width={window.innerWidth}
       height={window.innerHeight}
       onMouseMove={trackMouse}
-      onDblClick={spawnNode}
+      onDblClick={() => spawnNode(mousePos)}
     >
       <Layer>
         {nodes.map((node, i) => {
