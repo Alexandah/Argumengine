@@ -160,6 +160,22 @@ const ArgGraph = () => {
   const [args, setArgs] = React.useState([]);
   const [conflicts, setConflicts] = React.useState([]);
 
+  //where points is a list of javascript objects
+  //with x y coordinate properties
+  const computeAveragePoint = (points) => {
+    var avgX = 0;
+    var avgY = 0;
+    for (var i = 0; i < points.length; i++) {
+      let point = points[i];
+      avgX += point.x;
+      avgY += point.y;
+    }
+    avgX /= points.length;
+    avgY /= points.length;
+    var avgPoint = { x: avgX, y: avgY };
+    return avgPoint;
+  };
+
   const toggleSelected = (selectedIndex) => {
     setNodes(
       nodes.map((node, index) => {
