@@ -177,10 +177,7 @@ const ArgGraph = () => {
   };
 
   const getSelected = () => {
-    var selected = [];
-    for (var i = 0; i < nodes.length; i++)
-      if (nodes[i].selected) selected.push(nodes[i]);
-    return selected;
+    return nodes.filter((node) => node.selected);
   };
 
   //The various kinds of edges are drawn by having each part
