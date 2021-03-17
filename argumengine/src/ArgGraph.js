@@ -3,6 +3,44 @@ import { Stage, Layer, Circle, Text, Rect, Group, Image } from "react-konva";
 import Konva from "konva";
 import useImage from "use-image";
 
+const EditorMenu = () => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [visible, setVisible] = useState(false);
+
+  //closes editor menu if they click away
+  const handleClick = () => {
+    setVisible(false);
+  };
+
+  //overrides the default right click behavior
+  const handleRightClick = (e) => {
+    e.preventDefault();
+    setPosition({ x: e.pageX, y: e.pageY });
+    setVisible(true);
+    console.log("editor menu coords: " + position.x + "," + position.y);
+  };
+
+  useEffect(() => {
+    document.addEventListener("contextmenu", handleRightClick);
+    document.addEventListener("click", handleClick);
+    //cleans up listeners when the component is removed
+    return () => {
+      document.removeEventListener("contextmenu", handleRightClick);
+      document.removeEventListener("click", handleClick);
+    };
+  });
+
+  return (
+    <Circle
+      x={position.x}
+      y={position.y}
+      visible={visible}
+      stroke="black"
+      radius={50}
+    ></Circle>
+  );
+};
+
 const Node = (props) => {
   const [text, setText] = useState("");
   const [editing, setEditing] = useState(false);
@@ -160,6 +198,9 @@ const ArgGraph = () => {
   const [args, setArgs] = React.useState([]);
   const [conflicts, setConflicts] = React.useState([]);
 
+  const [isCreatingArg, setIsCreatingArg] = React.useState(false);
+  const [isCreatingConf, setIsCreatingConf] = React.useState(false);
+
   //where points is a list of javascript objects
   //with x y coordinate properties
   const computeAveragePoint = (points) => {
@@ -182,9 +223,18 @@ const ArgGraph = () => {
 
   //The various kinds of edges are drawn by having each part
   //from premise nodes meet at a central point. This is that point.
-  const computeMergePoint = () => {
-    var mergePoint = computeAveragePoint(getSelected());
+  const computeMergePoint = (points) => {
+    var mergePoint = computeAveragePoint(points);
     return mergePoint;
+  };
+
+  const pointListToKonvaLine = (points) => {
+    var line = [];
+    for (var i = 0; i < points.length; i++) {
+      let point = points[i];
+      line.push(point.x, point.y);
+    }
+    return line;
   };
 
   const toggleSelected = (selectedIndex) => {
@@ -253,6 +303,7 @@ const ArgGraph = () => {
             ></Node>
           );
         })}
+        <EditorMenu></EditorMenu>
       </Layer>
     </Stage>
   );
