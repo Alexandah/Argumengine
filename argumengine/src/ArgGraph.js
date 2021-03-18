@@ -3,7 +3,7 @@ import { Stage, Layer, Circle, Text, Rect, Group, Image } from "react-konva";
 import Konva from "konva";
 import useImage from "use-image";
 
-const EditorMenu = () => {
+const EditorMenu = ({ visibilityCondition, menu }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [visible, setVisible] = useState(false);
 
@@ -15,9 +15,9 @@ const EditorMenu = () => {
   //overrides the default right click behavior
   const handleRightClick = (e) => {
     e.preventDefault();
-    setPosition({ x: e.pageX, y: e.pageY });
-    setVisible(true);
-    console.log("editor menu coords: " + position.x + "," + position.y);
+    //setPosition({ x: e.pageX, y: e.pageY });
+    setPosition({ x: 0, y: 0 });
+    if (visibilityCondition) setVisible(true);
   };
 
   useEffect(() => {
@@ -31,13 +31,9 @@ const EditorMenu = () => {
   });
 
   return (
-    <Circle
-      x={position.x}
-      y={position.y}
-      visible={visible}
-      stroke="black"
-      radius={50}
-    ></Circle>
+    <Group x={position.x} y={position.y} visible={visible}>
+      {menu}
+    </Group>
   );
 };
 
@@ -109,12 +105,13 @@ const Node = (props) => {
   //Since Konva does not support placing a text editing
   //object directly into a group, we have to manually create
   //one on top of it using javascript :(
-  const editText = (obj) => {
-    var editButton = obj.currentTarget;
-    var textPosition = editButton.getAbsolutePosition();
+  const editText = (textBoxPos) => {
+    //var editButton = obj.currentTarget;
+    //var textPosition = editButton.getAbsolutePosition();
+    var textPosition = textBoxPos;
     //adjusting back to the beginning of the node
-    textPosition.x -= width;
-    console.log(textPosition);
+    //textPosition.x -= width;
+    //console.log(textPosition);
     var textarea = document.createElement("textarea");
     textarea.value = text;
     textarea.style.position = "absolute";
@@ -165,30 +162,35 @@ const Node = (props) => {
         shadowOpacity={shadowOpacity}
       ></Rect>
       <Text text={text} align={"center"} height={height} width={width}></Text>
-      <Image
-        image={editIcon}
-        stroke={"green"}
-        x={width}
-        scaleX={iconScale}
-        scaleY={iconScale}
-        visible={showEditorPanel}
-        onClick={(e) => {
-          setEditing(true);
-          editText(e);
-        }}
-      ></Image>
-      <Image
-        image={deleteIcon}
-        stroke={"red"}
-        x={width}
-        y={deleteIconVerticalOffset}
-        scaleX={iconScale}
-        scaleY={iconScale}
-        visible={showEditorPanel}
-        onClick={() => {
-          props.deleteNode(props.id);
-        }}
-      ></Image>
+      <EditorMenu
+        visibilityCondition={showEditorPanel}
+        menu={
+          <Group>
+            <Image
+              image={editIcon}
+              stroke={"green"}
+              //x={width}
+              scaleX={iconScale}
+              scaleY={iconScale}
+              onClick={() => {
+                setEditing(true);
+                editText({ x: props.x, y: props.y });
+              }}
+            ></Image>
+            <Image
+              image={deleteIcon}
+              stroke={"red"}
+              //x={width}
+              y={deleteIconVerticalOffset}
+              scaleX={iconScale}
+              scaleY={iconScale}
+              onClick={() => {
+                props.deleteNode(props.id);
+              }}
+            ></Image>
+          </Group>
+        }
+      ></EditorMenu>
     </Group>
   );
 };
@@ -303,7 +305,6 @@ const ArgGraph = () => {
             ></Node>
           );
         })}
-        <EditorMenu></EditorMenu>
       </Layer>
     </Stage>
   );
