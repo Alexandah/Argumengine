@@ -3,7 +3,13 @@ import { Stage, Layer, Circle, Text, Rect, Group, Image } from "react-konva";
 import Konva from "konva";
 import useImage from "use-image";
 
-const EditorMenu = ({ visibilityCondition, menu }) => {
+function getRelativePosition(startPos, destPos) {
+  //vector math: s + x = d <--> x = d - s
+  var relativePos = { x: destPos.x - startPos.x, y: destPos.y - startPos.y };
+  return relativePos;
+}
+
+const EditorMenu = ({ visibilityCondition, menu, mousePos, parentPos }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [visible, setVisible] = useState(false);
 
@@ -15,9 +21,10 @@ const EditorMenu = ({ visibilityCondition, menu }) => {
   //overrides the default right click behavior
   const handleRightClick = (e) => {
     e.preventDefault();
-    //setPosition({ x: e.pageX, y: e.pageY });
-    setPosition({ x: 0, y: 0 });
+    var relativeTo = parentPos;
+    setPosition(getRelativePosition(relativeTo, mousePos));
     if (visibilityCondition) setVisible(true);
+    else setVisible(false);
   };
 
   useEffect(() => {
@@ -38,10 +45,8 @@ const EditorMenu = ({ visibilityCondition, menu }) => {
 };
 
 const Node = (props) => {
-  const [text, setText] = useState("");
   const [editing, setEditing] = useState(false);
-
-  const [showEditorPanel, setShowEditorPanel] = useState(false);
+  const [mayShowEditorPanel, setMayShowEditorPanel] = useState(false);
   const iconScale = 0.7;
   const [editIcon] = useImage("/editicon.png");
   const deleteIconVerticalOffset = 27;
@@ -62,7 +67,7 @@ const Node = (props) => {
   const lettersPerLine = lettersPerPixelHorizontal * 100;
   const verticalPixelsPerLine = 15;
   const getLines = () => {
-    let letters = text.length;
+    let letters = props.text.length;
     var lines = 0;
     while (letters - lettersPerLine > 0) {
       lines++;
@@ -74,7 +79,7 @@ const Node = (props) => {
   const [height, setHeight] = React.useState(minHeight);
 
   const updateNodeSize = () => {
-    let letters = text.length;
+    let letters = props.text.length;
     let newWidth = letters / lettersPerPixelHorizontal;
     let newHeight = getLines() * verticalPixelsPerLine;
     newWidth = minWidth > newWidth ? minWidth : newWidth;
@@ -86,7 +91,7 @@ const Node = (props) => {
 
   useEffect(() => {
     updateNodeSize();
-  }, [text]);
+  }, [editing]);
 
   //for scaling the text editing box
   const getRows = () => {
@@ -95,7 +100,7 @@ const Node = (props) => {
   const colsPerPixelHorizontal = 20 / 150;
   const getCols = () => {
     if (width == maxWidth) return 20;
-    let letters = text.length;
+    let letters = props.text.length;
     let horizontalPixels = letters / lettersPerPixelHorizontal;
     let cols = Math.round(horizontalPixels * colsPerPixelHorizontal);
     if (cols < 13) return 13;
@@ -113,7 +118,7 @@ const Node = (props) => {
     //textPosition.x -= width;
     //console.log(textPosition);
     var textarea = document.createElement("textarea");
-    textarea.value = text;
+    textarea.value = props.text;
     textarea.style.position = "absolute";
     textarea.style.top = textPosition.y + "px";
     textarea.style.left = textPosition.x + "px";
@@ -123,7 +128,7 @@ const Node = (props) => {
     textarea.focus();
     function endTextEdit() {
       //if (editing) {
-      setText(textarea.value);
+      props.updateNodeText(props.id, textarea.value);
       document.body.removeChild(textarea);
       setEditing(false);
       //}
@@ -141,13 +146,15 @@ const Node = (props) => {
       x={props.x}
       y={props.y}
       draggable
-      onClick={() => props.toggleSelected(props.id)}
+      onClick={() => {
+        if (!editing) props.toggleSelected(props.id);
+      }}
       onDragMove={(e) => {
         var pos = e.currentTarget.getAbsolutePosition();
         props.updateNodePos(props.id, pos.x, pos.y);
       }}
-      onMouseEnter={() => setShowEditorPanel(true)}
-      onMouseLeave={() => setShowEditorPanel(false)}
+      onMouseEnter={() => setMayShowEditorPanel(true)}
+      onMouseLeave={() => setMayShowEditorPanel(false)}
     >
       <Rect
         stroke={"black"}
@@ -161,15 +168,21 @@ const Node = (props) => {
         shadowOffsetY={15}
         shadowOpacity={shadowOpacity}
       ></Rect>
-      <Text text={text} align={"center"} height={height} width={width}></Text>
+      <Text
+        text={props.text}
+        align={"center"}
+        height={height}
+        width={width}
+      ></Text>
       <EditorMenu
-        visibilityCondition={showEditorPanel}
+        visibilityCondition={mayShowEditorPanel}
+        mousePos={props.mousePos}
+        parentPos={{ x: props.x, y: props.y }}
         menu={
           <Group>
             <Image
               image={editIcon}
               stroke={"green"}
-              //x={width}
               scaleX={iconScale}
               scaleY={iconScale}
               onClick={() => {
@@ -180,11 +193,11 @@ const Node = (props) => {
             <Image
               image={deleteIcon}
               stroke={"red"}
-              //x={width}
               y={deleteIconVerticalOffset}
               scaleX={iconScale}
               scaleY={iconScale}
               onClick={() => {
+                setEditing(true);
                 props.deleteNode(props.id);
               }}
             ></Image>
@@ -196,7 +209,8 @@ const Node = (props) => {
 };
 
 const ArgGraph = () => {
-  const [nodes, setNodes] = React.useState([]);
+  const [nextAvailiableId, setNextAvailiableId] = useState(0);
+  const [nodes, setNodes] = React.useState({});
   const [args, setArgs] = React.useState([]);
   const [conflicts, setConflicts] = React.useState([]);
 
@@ -239,15 +253,10 @@ const ArgGraph = () => {
     return line;
   };
 
-  const toggleSelected = (selectedIndex) => {
-    setNodes(
-      nodes.map((node, index) => {
-        if (index == selectedIndex) {
-          node.selected = !node.selected;
-          return node;
-        } else return node;
-      })
-    );
+  const toggleSelected = (selectedId) => {
+    console.log("toggleSelected running on id: " + selectedId);
+    nodes[selectedId].selected = !nodes[selectedId].selected;
+    setNodes(nodes);
   };
 
   const [mousePos, setMousePos] = React.useState();
@@ -257,30 +266,37 @@ const ArgGraph = () => {
   };
 
   const spawnNode = (pos) => {
-    setNodes(
-      nodes.concat({
-        x: pos.x,
-        y: pos.y,
-        selected: false,
-      })
-    );
+    console.log("spawnNode running");
+    var newNodes = nodes;
+    var newNode = {
+      id: nextAvailiableId,
+      x: pos.x,
+      y: pos.y,
+      text: "",
+      selected: false,
+    };
+    newNodes["node" + nextAvailiableId] = newNode;
+    setNextAvailiableId(nextAvailiableId + 1);
+    setNodes(newNodes);
   };
 
-  const updateNodePos = (selectedIndex, x, y) => {
-    setNodes(
-      nodes.map((node, index) => {
-        if (index == selectedIndex) {
-          node.x = x;
-          node.y = y;
-          return node;
-        } else return node;
-      })
-    );
+  const updateNodePos = (selectedId, x, y) => {
+    console.log("updateNodePos running on id: " + selectedId);
+    nodes[selectedId].x = x;
+    nodes[selectedId].y = y;
+    setNodes(nodes);
   };
 
-  const deleteNode = (selectedIndex) => {
-    setNodes(nodes.filter((node, i) => i !== selectedIndex));
+  const updateNodeText = (selectedId, text) => {
+    nodes[selectedId].text = text;
+    setNodes(nodes);
+  };
+
+  const deleteNode = (selectedId) => {
+    console.log("deleteNode running on id: " + selectedId);
     console.log(nodes);
+    delete nodes[selectedId];
+    setNodes(nodes);
   };
 
   return (
@@ -291,17 +307,21 @@ const ArgGraph = () => {
       onDblClick={() => spawnNode(mousePos)}
     >
       <Layer>
-        {nodes.map((node, i) => {
+        {Object.keys(nodes).map((nodeKey, i) => {
+          let node = nodes[nodeKey];
           return (
             <Node
               key={i}
-              id={i}
+              id={nodeKey}
               x={node.x}
               y={node.y}
+              text={node.text}
               selected={node.selected}
               toggleSelected={toggleSelected}
               updateNodePos={updateNodePos}
+              updateNodeText={updateNodeText}
               deleteNode={deleteNode}
+              mousePos={mousePos}
             ></Node>
           );
         })}
