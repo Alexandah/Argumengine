@@ -3,13 +3,26 @@ import { Stage, Layer, Circle, Text, Rect, Group, Image } from "react-konva";
 import Konva from "konva";
 import useImage from "use-image";
 
+const defaultEditorMode = {
+  create: { node: false, edge: false },
+  edit: { node: false, edge: false },
+};
+
 function getRelativePosition(startPos, destPos) {
   //vector math: s + x = d <--> x = d - s
   var relativePos = { x: destPos.x - startPos.x, y: destPos.y - startPos.y };
   return relativePos;
 }
 
-const EditorMenu = ({ visibilityCondition, menu, mousePos, parentPos }) => {
+const EditorMenu = ({
+  menu,
+  mousePos,
+  parentPos,
+  editorMode,
+  setEditorMode,
+  requestedEditorMode,
+  visibilityCondition,
+}) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [visible, setVisible] = useState(false);
 
@@ -18,12 +31,30 @@ const EditorMenu = ({ visibilityCondition, menu, mousePos, parentPos }) => {
     setVisible(false);
   };
 
+  const updatedEditorMode = (requestedEditorMode) => {
+    var newMode = requestedEditorMode;
+    //give precedence to edit over create
+    //this avoids double menus when clicking objects, since this
+    //also counts as clicking the canvas
+    if (editorMode.edit.node || editorMode.edit.edge) {
+      newMode.create.node = false;
+      newMode.create.edge = false;
+    }
+    //give precedence to node edits over edge edits
+    //covers the edge case when a node and edge overlap
+    if (editorMode.edit.node) newMode.edit.edge = false;
+    return newMode;
+  };
+
   //overrides the default right click behavior
   const handleRightClick = (e) => {
     e.preventDefault();
     var relativeTo = parentPos;
     setPosition(getRelativePosition(relativeTo, mousePos));
-    if (visibilityCondition) setVisible(true);
+    if (visibilityCondition())
+      setEditorMode(updatedEditorMode(requestedEditorMode));
+    if (visibilityCondition() && requestedEditorMode == editorMode)
+      setVisible(true);
     else setVisible(false);
   };
 
@@ -141,6 +172,9 @@ const Node = (props) => {
     });
   };
 
+  var requestedEditorMode = defaultEditorMode;
+  if (mayShowEditorPanel) requestedEditorMode.edit.node = true;
+
   return (
     <Group
       x={props.x}
@@ -175,9 +209,14 @@ const Node = (props) => {
         width={width}
       ></Text>
       <EditorMenu
-        visibilityCondition={mayShowEditorPanel}
+        visibilityCondition={() => {
+          return mayShowEditorPanel;
+        }}
         mousePos={props.mousePos}
         parentPos={{ x: props.x, y: props.y }}
+        editorMode={props.editorMode}
+        setEditorMode={props.setEditorMode}
+        requestedEditorMode={requestedEditorMode}
         menu={
           <Group>
             <Image
@@ -209,7 +248,9 @@ const Node = (props) => {
 };
 
 const ArgGraph = () => {
+  const [editorMode, setEditorMode] = useState(defaultEditorMode);
   const [nextAvailiableId, setNextAvailiableId] = useState(0);
+
   const [nodes, setNodes] = React.useState({});
   const [args, setArgs] = React.useState([]);
   const [conflicts, setConflicts] = React.useState([]);
@@ -234,7 +275,17 @@ const ArgGraph = () => {
   };
 
   const getSelected = () => {
-    return nodes.filter((node) => node.selected);
+    var selectedNodes = Object.keys(nodes).map((key) => {
+      var node = nodes[key];
+      if (node.selected) return node;
+    });
+    return selectedNodes;
+  };
+
+  const isAnySelected = () => {
+    var selectedNodes = getSelected();
+    if (selectedNodes[0] === undefined) return false;
+    return selectedNodes.length > 0;
   };
 
   //The various kinds of edges are drawn by having each part
@@ -299,6 +350,21 @@ const ArgGraph = () => {
     setNodes(nodes);
   };
 
+  var creationEditorMenuElements = [];
+  if (editorMode.create.node)
+    creationEditorMenuElements.push(
+      <Circle stroke={"black"} radius={25} fill={"green"}></Circle>
+    );
+  if (editorMode.create.edge)
+    creationEditorMenuElements.push(
+      <Circle stroke={"black"} radius={25} y={10} fill={"red"}></Circle>,
+      <Circle stroke={"black"} radius={25} y={20} fill={"blue"}></Circle>
+    );
+
+  var requestedEditorMode = defaultEditorMode;
+  requestedEditorMode.create.node = true;
+  if (isAnySelected()) requestedEditorMode.create.edge = true;
+
   return (
     <Stage
       width={window.innerWidth}
@@ -322,14 +388,21 @@ const ArgGraph = () => {
               updateNodeText={updateNodeText}
               deleteNode={deleteNode}
               mousePos={mousePos}
+              editorMode={editorMode}
+              setEditorMode={setEditorMode}
             ></Node>
           );
         })}
         <EditorMenu
-          visibilityCondition={true}
+          editorMode={editorMode}
+          setEditorMode={setEditorMode}
+          requestedEditorMode={requestedEditorMode}
+          visibilityCondition={() => {
+            return editorMode.create.node || editorMode.create.edge;
+          }}
           mousePos={mousePos}
           parentPos={{ x: 0, y: 0 }}
-          menu={<Text text={"test test test"}></Text>}
+          menu={<Group>{creationEditorMenuElements}</Group>}
         ></EditorMenu>
       </Layer>
     </Stage>
