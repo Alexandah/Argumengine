@@ -21,6 +21,9 @@ const EditorMenu = ({ visibilityCondition, menu, mousePos, parentPos }) => {
   //overrides the default right click behavior
   const handleRightClick = (e) => {
     e.preventDefault();
+    switch (e.target) {
+      case e.target.getStage():
+    }
     var relativeTo = parentPos;
     setPosition(getRelativePosition(relativeTo, mousePos));
     if (visibilityCondition) setVisible(true);
