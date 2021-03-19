@@ -325,6 +325,12 @@ const ArgGraph = () => {
             ></Node>
           );
         })}
+        <EditorMenu
+          visibilityCondition={true}
+          mousePos={mousePos}
+          parentPos={{ x: 0, y: 0 }}
+          menu={<Text text={"test test test"}></Text>}
+        ></EditorMenu>
       </Layer>
     </Stage>
   );
