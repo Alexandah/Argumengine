@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Stage, Layer, Circle, Text, Rect, Group, Image } from "react-konva";
+import {
+  Stage,
+  Layer,
+  Circle,
+  Text,
+  Rect,
+  Group,
+  Image,
+  Arrow,
+} from "react-konva";
 import Konva from "konva";
 import useImage from "use-image";
 
@@ -247,6 +256,76 @@ const Node = (props) => {
   );
 };
 
+//where points is a list of javascript objects
+//with x y coordinate properties
+const computeAveragePoint = (points) => {
+  var avgX = 0;
+  var avgY = 0;
+  for (var i = 0; i < points.length; i++) {
+    let point = points[i];
+    avgX += point.x;
+    avgY += point.y;
+  }
+  avgX /= points.length;
+  avgY /= points.length;
+  var avgPoint = { x: avgX, y: avgY };
+  return avgPoint;
+};
+
+//The various kinds of edges are drawn by having each part
+//from premise nodes meet at a central point. This is that point.
+const computeMergePoint = (points) => {
+  var mergePoint = computeAveragePoint(points);
+  return mergePoint;
+};
+
+//Konva lines/arrows only accept a flattened array of points.
+//s.t. [x0, y0, x1, y1, ...]
+const pointListToKonvaLine = (points) => {
+  var line = [];
+  for (var i = 0; i < points.length; i++) {
+    let point = points[i];
+    line.push(point.x, point.y);
+  }
+  return line;
+};
+
+const Argument = ({ mousePos, creating, premises, conclusion }) => {
+  const makePremiseToMergePointArrows = (premises, mergepoint) => {
+    var arrows = [];
+    for (var i = 0; i < premises.length; i++) {
+      var premise = premises[i];
+      arrows.push(
+        <Arrow
+          points={pointListToKonvaLine([premise, mergepoint])}
+          tension={0.7}
+        ></Arrow>
+      );
+    }
+    return arrows;
+  };
+
+  const makeMergePointToConclusionArrow = (mergepoint, conclusion) => {
+    return (
+      <Arrow points={pointListToKonvaLine([mergepoint, conclusion])}></Arrow>
+    );
+  };
+
+  const makeArgumentEdge = (premises, conclusion) => {
+    var mergepoint = computeMergePoint([premises, conclusion]);
+    var arrows = makePremiseToMergePointArrows(premises, mergepoint);
+    arrows.push(makeMergePointToConclusionArrow(mergepoint, conclusion));
+    return <Group>{arrows}</Group>;
+  };
+
+  var destNode;
+  if (creating) destNode = mousePos;
+  else destNode = conclusion;
+  return makeArgumentEdge(premises, conclusion);
+};
+
+const Conflict = (props) => {};
+
 const ArgGraph = () => {
   const [editorMode, setEditorMode] = useState(defaultEditorMode);
   const [nextAvailiableId, setNextAvailiableId] = useState(0);
@@ -257,22 +336,6 @@ const ArgGraph = () => {
 
   const [isCreatingArg, setIsCreatingArg] = React.useState(false);
   const [isCreatingConf, setIsCreatingConf] = React.useState(false);
-
-  //where points is a list of javascript objects
-  //with x y coordinate properties
-  const computeAveragePoint = (points) => {
-    var avgX = 0;
-    var avgY = 0;
-    for (var i = 0; i < points.length; i++) {
-      let point = points[i];
-      avgX += point.x;
-      avgY += point.y;
-    }
-    avgX /= points.length;
-    avgY /= points.length;
-    var avgPoint = { x: avgX, y: avgY };
-    return avgPoint;
-  };
 
   const getSelected = () => {
     var selectedNodes = Object.keys(nodes).map((key) => {
@@ -286,22 +349,6 @@ const ArgGraph = () => {
     var selectedNodes = getSelected();
     if (selectedNodes[0] === undefined) return false;
     return selectedNodes.length > 0;
-  };
-
-  //The various kinds of edges are drawn by having each part
-  //from premise nodes meet at a central point. This is that point.
-  const computeMergePoint = (points) => {
-    var mergePoint = computeAveragePoint(points);
-    return mergePoint;
-  };
-
-  const pointListToKonvaLine = (points) => {
-    var line = [];
-    for (var i = 0; i < points.length; i++) {
-      let point = points[i];
-      line.push(point.x, point.y);
-    }
-    return line;
   };
 
   const toggleSelected = (selectedId) => {
@@ -329,6 +376,19 @@ const ArgGraph = () => {
     newNodes["node" + nextAvailiableId] = newNode;
     setNextAvailiableId(nextAvailiableId + 1);
     setNodes(newNodes);
+  };
+
+  const spawnArgument = (premises) => {
+    var newArgs = args;
+    var newArg = {
+      id: nextAvailiableId,
+      creating: true,
+      premises: premises,
+      conclusion: null,
+    };
+    newArgs["arg" + nextAvailiableId] = newArg;
+    setNextAvailiableId(nextAvailiableId + 1);
+    setArgs(newArgs);
   };
 
   const updateNodePos = (selectedId, x, y) => {
