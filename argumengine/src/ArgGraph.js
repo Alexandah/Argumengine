@@ -261,6 +261,11 @@ const Node = (props) => {
 const computeAveragePoint = (points) => {
   var avgX = 0;
   var avgY = 0;
+  //Object.keys(points).map(key => {
+  //  points[key]
+  //})
+  console.log("computing avg point w/");
+  console.log(points);
   for (var i = 0; i < points.length; i++) {
     let point = points[i];
     avgX += point.x;
@@ -269,6 +274,8 @@ const computeAveragePoint = (points) => {
   avgX /= points.length;
   avgY /= points.length;
   var avgPoint = { x: avgX, y: avgY };
+  console.log("avgPoint: ");
+  console.log(avgPoint);
   return avgPoint;
 };
 
@@ -276,6 +283,8 @@ const computeAveragePoint = (points) => {
 //from premise nodes meet at a central point. This is that point.
 const computeMergePoint = (points) => {
   var mergePoint = computeAveragePoint(points);
+  console.log("mergePoint: ");
+  console.log(mergePoint);
   return mergePoint;
 };
 
@@ -287,10 +296,22 @@ const pointListToKonvaLine = (points) => {
     let point = points[i];
     line.push(point.x, point.y);
   }
+  console.log(line);
   return line;
 };
 
 const Argument = ({ mousePos, creating, premises, conclusion }) => {
+  const computeStartPointFromPremise = (premise) => {
+    //for now, I'm just going to have it start from the bottom middle
+    //of each premise node. In the future, perhaps depending on where
+    //the conclusion is we could move it to another part of the node.
+    //Also, I will need to add premise width/height to the ArgGraph
+    //storage to do this consistently
+    var width = 100;
+    var height = width / 2;
+    return { x: premise.x + width / 2, y: premise.y + height };
+  };
+
   const makePremiseToMergePointArrows = (premises, mergepoint) => {
     var arrows = [];
     for (var i = 0; i < premises.length; i++) {
@@ -298,7 +319,9 @@ const Argument = ({ mousePos, creating, premises, conclusion }) => {
       arrows.push(
         <Arrow
           points={pointListToKonvaLine([premise, mergepoint])}
-          tension={0.7}
+          tension={100}
+          stroke={"black"}
+          fill={"black"}
         ></Arrow>
       );
     }
@@ -307,12 +330,21 @@ const Argument = ({ mousePos, creating, premises, conclusion }) => {
 
   const makeMergePointToConclusionArrow = (mergepoint, conclusion) => {
     return (
-      <Arrow points={pointListToKonvaLine([mergepoint, conclusion])}></Arrow>
+      <Arrow
+        points={pointListToKonvaLine([mergepoint, conclusion])}
+        stroke={"black"}
+        fill={"black"}
+      ></Arrow>
     );
   };
 
   const makeArgumentEdge = (premises, conclusion) => {
-    var mergepoint = computeMergePoint([premises, conclusion]);
+    premises = premises.map((premise) => {
+      return computeStartPointFromPremise(premise);
+    });
+    var allPoints = premises;
+    allPoints.push(conclusion);
+    var mergepoint = computeMergePoint(allPoints);
     var arrows = makePremiseToMergePointArrows(premises, mergepoint);
     arrows.push(makeMergePointToConclusionArrow(mergepoint, conclusion));
     return <Group>{arrows}</Group>;
@@ -321,7 +353,7 @@ const Argument = ({ mousePos, creating, premises, conclusion }) => {
   var destNode;
   if (creating) destNode = mousePos;
   else destNode = conclusion;
-  return makeArgumentEdge(premises, conclusion);
+  return makeArgumentEdge(premises, destNode);
 };
 
 const Conflict = (props) => {};
@@ -379,6 +411,7 @@ const ArgGraph = () => {
   };
 
   const spawnArgument = (premises) => {
+    console.log("spawnArgument running");
     var newArgs = args;
     var newArg = {
       id: nextAvailiableId,
@@ -389,6 +422,7 @@ const ArgGraph = () => {
     newArgs["arg" + nextAvailiableId] = newArg;
     setNextAvailiableId(nextAvailiableId + 1);
     setArgs(newArgs);
+    console.log(newArg);
   };
 
   const updateNodePos = (selectedId, x, y) => {
@@ -417,8 +451,14 @@ const ArgGraph = () => {
     );
   if (editorMode.create.edge)
     creationEditorMenuElements.push(
-      <Circle stroke={"black"} radius={25} y={10} fill={"red"}></Circle>,
-      <Circle stroke={"black"} radius={25} y={20} fill={"blue"}></Circle>
+      <Circle stroke={"black"} radius={25} y={50} fill={"red"}></Circle>,
+      <Circle
+        stroke={"black"}
+        radius={25}
+        y={100}
+        fill={"blue"}
+        onClick={() => spawnArgument(getSelected())}
+      ></Circle>
     );
 
   var requestedEditorMode = defaultEditorMode;
@@ -451,6 +491,19 @@ const ArgGraph = () => {
               editorMode={editorMode}
               setEditorMode={setEditorMode}
             ></Node>
+          );
+        })}
+        {Object.keys(args).map((argKey, i) => {
+          let arg = args[argKey];
+          return (
+            <Argument
+              key={i}
+              id={argKey}
+              mousePos={mousePos}
+              creating={arg.creating}
+              premises={arg.premises}
+              conclusion={arg.conclusion}
+            ></Argument>
           );
         })}
         <EditorMenu
