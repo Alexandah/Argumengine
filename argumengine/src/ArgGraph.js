@@ -191,6 +191,7 @@ const Node = (props) => {
       draggable
       onClick={() => {
         if (!editing) props.toggleSelected(props.id);
+        props.onClick();
       }}
       onDragMove={(e) => {
         var pos = e.currentTarget.getAbsolutePosition();
@@ -264,8 +265,6 @@ const computeAveragePoint = (points) => {
   //Object.keys(points).map(key => {
   //  points[key]
   //})
-  console.log("computing avg point w/");
-  console.log(points);
   for (var i = 0; i < points.length; i++) {
     let point = points[i];
     avgX += point.x;
@@ -274,8 +273,6 @@ const computeAveragePoint = (points) => {
   avgX /= points.length;
   avgY /= points.length;
   var avgPoint = { x: avgX, y: avgY };
-  console.log("avgPoint: ");
-  console.log(avgPoint);
   return avgPoint;
 };
 
@@ -283,8 +280,6 @@ const computeAveragePoint = (points) => {
 //from premise nodes meet at a central point. This is that point.
 const computeMergePoint = (points) => {
   var mergePoint = computeAveragePoint(points);
-  console.log("mergePoint: ");
-  console.log(mergePoint);
   return mergePoint;
 };
 
@@ -296,7 +291,6 @@ const pointListToKonvaLine = (points) => {
     let point = points[i];
     line.push(point.x, point.y);
   }
-  console.log(line);
   return line;
 };
 
@@ -351,8 +345,12 @@ const Argument = ({ mousePos, creating, premises, conclusion }) => {
   };
 
   var destNode;
-  if (creating) destNode = mousePos;
-  else destNode = conclusion;
+  if (creating) {
+    var followPos = mousePos;
+    followPos.x -= 10;
+    followPos.y -= 10;
+    destNode = followPos;
+  } else destNode = conclusion;
   return makeArgumentEdge(premises, destNode);
 };
 
@@ -366,7 +364,7 @@ const ArgGraph = () => {
   const [args, setArgs] = React.useState([]);
   const [conflicts, setConflicts] = React.useState([]);
 
-  const [isCreatingArg, setIsCreatingArg] = React.useState(false);
+  const [argBeingCreated, setArgBeingCreated] = React.useState(null);
   const [isCreatingConf, setIsCreatingConf] = React.useState(false);
 
   const getSelected = () => {
@@ -410,8 +408,8 @@ const ArgGraph = () => {
     setNodes(newNodes);
   };
 
-  const spawnArgument = (premises) => {
-    console.log("spawnArgument running");
+  const beginCreatingArgument = (premises) => {
+    console.log("beginCreatingArgument running");
     var newArgs = args;
     var newArg = {
       id: nextAvailiableId,
@@ -422,7 +420,34 @@ const ArgGraph = () => {
     newArgs["arg" + nextAvailiableId] = newArg;
     setNextAvailiableId(nextAvailiableId + 1);
     setArgs(newArgs);
+    setArgBeingCreated(newArg);
     console.log(newArg);
+  };
+
+  const cancelCreatingArgument = () => {
+    var newArgs = args;
+    var argToCancel = argBeingCreated;
+    if (argToCancel !== null) {
+      delete newArgs["arg" + argBeingCreated.id];
+      setArgs(newArgs);
+      setArgBeingCreated(null);
+    }
+  };
+
+  const finishCreatingArgument = (conclusion) => {
+    console.log("finishCreatingArgument running. Arg being created:");
+    console.log(argBeingCreated);
+    console.log("conclusion");
+    console.log(conclusion);
+    var arg = argBeingCreated;
+    var newArgs = args;
+    arg.creating = false;
+    arg.conclusion = conclusion;
+    newArgs["arg" + arg.id] = arg;
+    setArgs(newArgs);
+    setArgBeingCreated(null);
+    console.log(newArgs);
+    console.log(argBeingCreated);
   };
 
   const updateNodePos = (selectedId, x, y) => {
@@ -457,7 +482,7 @@ const ArgGraph = () => {
         radius={25}
         y={100}
         fill={"blue"}
-        onClick={() => spawnArgument(getSelected())}
+        onClick={() => beginCreatingArgument(getSelected())}
       ></Circle>
     );
 
@@ -490,6 +515,11 @@ const ArgGraph = () => {
               mousePos={mousePos}
               editorMode={editorMode}
               setEditorMode={setEditorMode}
+              onClick={() => {
+                if (argBeingCreated !== null) {
+                  finishCreatingArgument(node);
+                }
+              }}
             ></Node>
           );
         })}
