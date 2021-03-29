@@ -338,11 +338,18 @@ const Argument = ({ mousePos, creating, premises, conclusion }) => {
     premises = premises.map((premise) => {
       return computeStartPointFromPremise(premise);
     });
-    var allPoints = premises;
+    var allPoints = premises.map((p) => {
+      return p;
+    });
     allPoints.push(conclusion);
-    var mergepoint = computeMergePoint(allPoints);
-    var arrows = makePremiseToMergePointArrows(premises, mergepoint);
-    arrows.push(makeMergePointToConclusionArrow(mergepoint, conclusion));
+    var arrows;
+    if (premises.length > 1) {
+      var mergepoint = computeMergePoint(allPoints);
+      arrows = makePremiseToMergePointArrows(premises, mergepoint);
+      arrows.push(makeMergePointToConclusionArrow(mergepoint, conclusion));
+    } else {
+      arrows = makeMergePointToConclusionArrow(premises[0], conclusion);
+    }
     return <Group>{arrows}</Group>;
   };
 
