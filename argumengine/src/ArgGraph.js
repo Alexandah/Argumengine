@@ -333,6 +333,8 @@ const Argument = ({ mousePos, creating, premises, conclusion }) => {
   };
 
   const makeArgumentEdge = (premises, conclusion) => {
+    console.log("making argument edge. w/ premises:");
+    console.log(premises);
     premises = premises.map((premise) => {
       return computeStartPointFromPremise(premise);
     });
@@ -372,6 +374,7 @@ const ArgGraph = () => {
       var node = nodes[key];
       if (node.selected) return node;
     });
+    selectedNodes = selectedNodes.filter((node) => node !== undefined);
     return selectedNodes;
   };
 
