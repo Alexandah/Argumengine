@@ -125,13 +125,14 @@ const Node = (props) => {
     newWidth = minWidth > newWidth ? minWidth : newWidth;
     newWidth = newWidth > maxWidth ? maxWidth : newWidth;
     newHeight = minHeight > newHeight ? minHeight : newHeight;
+    console.log(newWidth, newHeight);
     setWidth(newWidth);
     setHeight(newHeight);
   };
 
   useEffect(() => {
     updateNodeSize();
-  }, [editing]);
+  }, [editing, width, height]);
 
   //for scaling the text editing box
   const getRows = () => {
