@@ -333,8 +333,6 @@ const Argument = ({ mousePos, creating, premises, conclusion }) => {
   };
 
   const makeArgumentEdge = (premises, conclusion) => {
-    console.log("making argument edge. w/ premises:");
-    console.log(premises);
     premises = premises.map((premise) => {
       return computeStartPointFromPremise(premise);
     });
@@ -393,6 +391,7 @@ const ArgGraph = () => {
 
   const toggleSelected = (selectedId) => {
     console.log("toggleSelected running on id: " + selectedId);
+    console.log(nodes);
     nodes[selectedId].selected = !nodes[selectedId].selected;
     setNodes(nodes);
   };
@@ -404,7 +403,6 @@ const ArgGraph = () => {
   };
 
   const spawnNode = (pos) => {
-    console.log("spawnNode running");
     var newNodes = nodes;
     var newNode = {
       id: nextAvailiableId,
@@ -412,14 +410,35 @@ const ArgGraph = () => {
       y: pos.y,
       text: "",
       selected: false,
+      connectedArgs: {},
     };
     newNodes["node" + nextAvailiableId] = newNode;
     setNextAvailiableId(nextAvailiableId + 1);
     setNodes(newNodes);
   };
 
+  const deleteNode = (selectedId) => {
+    var nodeToDelete = nodes[selectedId];
+    var argsToDelete = nodeToDelete.connectedArgs;
+    Object.keys(argsToDelete).forEach((argId) => {
+      deleteArg(argId);
+    });
+    delete nodes[selectedId];
+    setNodes(nodes);
+  };
+
+  const updateNodePos = (selectedId, x, y) => {
+    nodes[selectedId].x = x;
+    nodes[selectedId].y = y;
+    setNodes(nodes);
+  };
+
+  const updateNodeText = (selectedId, text) => {
+    nodes[selectedId].text = text;
+    setNodes(nodes);
+  };
+
   const beginCreatingArgument = (premises) => {
-    console.log("beginCreatingArgument running");
     var newArgs = args;
     var newArg = {
       id: nextAvailiableId,
@@ -431,7 +450,6 @@ const ArgGraph = () => {
     setNextAvailiableId(nextAvailiableId + 1);
     setArgs(newArgs);
     setArgBeingCreated(newArg);
-    console.log(newArg);
   };
 
   const cancelCreatingArgument = () => {
@@ -445,10 +463,6 @@ const ArgGraph = () => {
   };
 
   const finishCreatingArgument = (conclusion) => {
-    console.log("finishCreatingArgument running. Arg being created:");
-    console.log(argBeingCreated);
-    console.log("conclusion");
-    console.log(conclusion);
     var arg = argBeingCreated;
     var newArgs = args;
     arg.creating = false;
@@ -456,27 +470,25 @@ const ArgGraph = () => {
     newArgs["arg" + arg.id] = arg;
     setArgs(newArgs);
     setArgBeingCreated(null);
-    console.log(newArgs);
-    console.log(argBeingCreated);
+    var connectedNodes = arg.premises.concat(conclusion);
+    var newNodes = nodes;
+    for (var i = 0; i < connectedNodes.length; i++) {
+      var node = newNodes["node" + connectedNodes[i].id];
+      node.connectedArgs["arg" + arg.id] = "arg" + arg.id;
+    }
+    setNodes(newNodes);
   };
 
-  const updateNodePos = (selectedId, x, y) => {
-    console.log("updateNodePos running on id: " + selectedId);
-    nodes[selectedId].x = x;
-    nodes[selectedId].y = y;
+  const deleteArg = (id) => {
+    var argToDelete = args[id];
+    console.log("deleting arg: " + id);
+    var nodesToUpdate = argToDelete.premises.concat(argToDelete.conclusion);
+    nodesToUpdate.forEach((node) => {
+      delete node.connectedArgs[id];
+    });
     setNodes(nodes);
-  };
-
-  const updateNodeText = (selectedId, text) => {
-    nodes[selectedId].text = text;
-    setNodes(nodes);
-  };
-
-  const deleteNode = (selectedId) => {
-    console.log("deleteNode running on id: " + selectedId);
-    console.log(nodes);
-    delete nodes[selectedId];
-    setNodes(nodes);
+    delete args[id];
+    setArgs(args);
   };
 
   var creationEditorMenuElements = [];
