@@ -494,7 +494,14 @@ const ArgGraph = () => {
   var creationEditorMenuElements = [];
   if (editorMode.create.node)
     creationEditorMenuElements.push(
-      <Circle stroke={"black"} radius={25} fill={"green"}></Circle>
+      <Circle
+        stroke={"black"}
+        radius={25}
+        fill={"green"}
+        onClick={() => {
+          spawnNode(mousePos);
+        }}
+      ></Circle>
     );
   if (editorMode.create.edge)
     creationEditorMenuElements.push(
