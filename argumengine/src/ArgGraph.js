@@ -125,7 +125,6 @@ const Node = (props) => {
     newWidth = minWidth > newWidth ? minWidth : newWidth;
     newWidth = newWidth > maxWidth ? maxWidth : newWidth;
     newHeight = minHeight > newHeight ? minHeight : newHeight;
-    console.log(newWidth, newHeight);
     setWidth(newWidth);
     setHeight(newHeight);
   };
@@ -295,18 +294,18 @@ const pointListToKonvaLine = (points) => {
   return line;
 };
 
-const Argument = ({ mousePos, creating, premises, conclusion }) => {
-  const computeStartPointFromPremise = (premise) => {
-    //for now, I'm just going to have it start from the bottom middle
-    //of each premise node. In the future, perhaps depending on where
-    //the conclusion is we could move it to another part of the node.
-    //Also, I will need to add premise width/height to the ArgGraph
-    //storage to do this consistently
-    var width = 100;
-    var height = width / 2;
-    return { x: premise.x + width / 2, y: premise.y + height };
-  };
+const computeStartPointFromPremise = (premise) => {
+  //for now, I'm just going to have it start from the bottom middle
+  //of each premise node. In the future, perhaps depending on where
+  //the conclusion is we could move it to another part of the node.
+  //Also, I will need to add premise width/height to the ArgGraph
+  //storage to do this consistently
+  var width = 100;
+  var height = width / 2;
+  return { x: premise.x + width / 2, y: premise.y + height };
+};
 
+const Argument = ({ mousePos, creating, premises, conclusion }) => {
   const makePremiseToMergePointArrows = (premises, mergepoint) => {
     var arrows = [];
     for (var i = 0; i < premises.length; i++) {
@@ -362,7 +361,41 @@ const Argument = ({ mousePos, creating, premises, conclusion }) => {
   return makeArgumentEdge(premises, destNode);
 };
 
-const Conflict = (props) => {};
+const Conflict = ({ nodes }) => {
+  const [mergepoint, setMergePoint] = useState(computeMergePoint(nodes));
+  useEffect(() => {
+    setMergePoint(computeMergePoint(nodes));
+  });
+
+  const makeNodeToMergePointLines = () => {
+    var arrows = [];
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      arrows.push(
+        <Arrow
+          points={pointListToKonvaLine([node, mergepoint])}
+          stroke={"red"}
+          fill={"red"}
+        ></Arrow>
+      );
+    }
+    return arrows;
+  };
+
+  const makeConflictEdge = () => {
+    var nodes = nodes.map((node) => {
+      return computeStartPointFromPremise(node);
+    });
+    var lines;
+    if (nodes.length > 1) {
+      lines = makeNodeToMergePointLines(mergepoint);
+    }
+
+    return <Group>{lines}</Group>;
+  };
+
+  return makeConflictEdge();
+};
 
 const ArgGraph = () => {
   const [editorMode, setEditorMode] = useState(defaultEditorMode);
