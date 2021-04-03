@@ -8,6 +8,7 @@ import {
   Group,
   Image,
   Arrow,
+  Line,
 } from "react-konva";
 import Konva from "konva";
 import useImage from "use-image";
@@ -362,32 +363,28 @@ const Argument = ({ mousePos, creating, premises, conclusion }) => {
 };
 
 const Conflict = ({ nodes }) => {
-  const [mergepoint, setMergePoint] = useState(computeMergePoint(nodes));
-  useEffect(() => {
-    setMergePoint(computeMergePoint(nodes));
-  });
-
-  const makeNodeToMergePointLines = () => {
-    var arrows = [];
+  const makeNodeToMergePointLines = (mergepoint) => {
+    var lines = [];
     for (var i = 0; i < nodes.length; i++) {
       var node = nodes[i];
-      arrows.push(
-        <Arrow
+      lines.push(
+        <Line
           points={pointListToKonvaLine([node, mergepoint])}
           stroke={"red"}
           fill={"red"}
-        ></Arrow>
+        ></Line>
       );
     }
-    return arrows;
+    return lines;
   };
 
   const makeConflictEdge = () => {
-    var nodes = nodes.map((node) => {
+    var connectionPoints = nodes.map((node) => {
       return computeStartPointFromPremise(node);
     });
     var lines;
-    if (nodes.length > 1) {
+    if (connectionPoints.length > 1) {
+      var mergepoint = computeMergePoint(nodes);
       lines = makeNodeToMergePointLines(mergepoint);
     }
 
@@ -402,8 +399,8 @@ const ArgGraph = () => {
   const [nextAvailiableId, setNextAvailiableId] = useState(0);
 
   const [nodes, setNodes] = React.useState({});
-  const [args, setArgs] = React.useState([]);
-  const [conflicts, setConflicts] = React.useState([]);
+  const [args, setArgs] = React.useState({});
+  const [conflicts, setConflicts] = React.useState({});
 
   const [argBeingCreated, setArgBeingCreated] = React.useState(null);
   const [isCreatingConf, setIsCreatingConf] = React.useState(false);
@@ -525,6 +522,13 @@ const ArgGraph = () => {
     setArgs(args);
   };
 
+  const spawnConf = (conflictingNodes) => {
+    var newConfs = conflicts;
+    var newConf = { id: nextAvailiableId, nodes: conflictingNodes };
+    newConfs["conf" + newConf.id] = newConf;
+    setConflicts(newConfs);
+  };
+
   var creationEditorMenuElements = [];
   if (editorMode.create.node)
     creationEditorMenuElements.push(
@@ -539,7 +543,15 @@ const ArgGraph = () => {
     );
   if (editorMode.create.edge)
     creationEditorMenuElements.push(
-      <Circle stroke={"black"} radius={25} y={50} fill={"red"}></Circle>,
+      <Circle
+        stroke={"black"}
+        radius={25}
+        y={50}
+        fill={"red"}
+        onClick={() => {
+          spawnConf(getSelected());
+        }}
+      ></Circle>,
       <Circle
         stroke={"black"}
         radius={25}
@@ -597,6 +609,12 @@ const ArgGraph = () => {
               premises={arg.premises}
               conclusion={arg.conclusion}
             ></Argument>
+          );
+        })}
+        {Object.keys(conflicts).map((conflictKey, i) => {
+          let conf = conflicts[conflictKey];
+          return (
+            <Conflict key={i} id={conflictKey} nodes={conf.nodes}></Conflict>
           );
         })}
         <EditorMenu
