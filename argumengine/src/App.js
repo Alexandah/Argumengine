@@ -4,7 +4,7 @@ import ArgGraph from "./ArgGraph";
 
 function App() {
   return (
-    <div className="App">
+    <div className='App'>
       <ArgGraph></ArgGraph>
     </div>
   );

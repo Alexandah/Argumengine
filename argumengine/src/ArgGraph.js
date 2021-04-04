@@ -236,9 +236,10 @@ const Node = (props) => {
               stroke={"green"}
               scaleX={iconScale}
               scaleY={iconScale}
-              onClick={() => {
+              onClick={(e) => {
                 setEditing(true);
-                editText({ x: props.x, y: props.y });
+                var screenPos = e.currentTarget.getAbsolutePosition();
+                editText(screenPos);
               }}
             ></Image>
             <Image
@@ -404,7 +405,16 @@ const ArgGraph = () => {
   const [conflicts, setConflicts] = React.useState({});
 
   const [argBeingCreated, setArgBeingCreated] = React.useState(null);
-  const [isCreatingConf, setIsCreatingConf] = React.useState(false);
+
+  const initialCanvasSize = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  };
+  const initialCanvasPos = {
+    x: -initialCanvasSize.width / 2,
+    y: -initialCanvasSize.height / 2,
+  };
+  const [canvasPos, setCanvasPos] = React.useState(initialCanvasPos);
 
   const getSelected = () => {
     var selectedNodes = Object.keys(nodes).map((key) => {
@@ -431,6 +441,7 @@ const ArgGraph = () => {
   const [mousePos, setMousePos] = React.useState();
   const trackMouse = (e) => {
     var pos = e.currentTarget.getPointerPosition();
+    pos = getRelativePosition(canvasPos, pos);
     setMousePos(pos);
   };
 
@@ -445,6 +456,8 @@ const ArgGraph = () => {
       connectedArgs: {},
     };
     newNodes["node" + nextAvailiableId] = newNode;
+    console.log("mousePos: ", mousePos);
+    console.log("newNode: ", newNode);
     setNextAvailiableId(nextAvailiableId + 1);
     setNodes(newNodes);
   };
@@ -461,8 +474,9 @@ const ArgGraph = () => {
   };
 
   const updateNodePos = (selectedId, x, y) => {
-    nodes[selectedId].x = x;
-    nodes[selectedId].y = y;
+    var updatedNodePos = getRelativePosition(canvasPos, { x: x, y: y });
+    nodes[selectedId].x = updatedNodePos.x;
+    nodes[selectedId].y = updatedNodePos.y;
     setNodes(nodes);
   };
 
@@ -586,70 +600,84 @@ const ArgGraph = () => {
   if (isAnySelected()) requestedEditorMode.create.edge = true;
 
   return (
-    <Stage
-      width={window.innerWidth}
-      height={window.innerHeight}
-      onMouseMove={trackMouse}
-      onDblClick={() => spawnNode(mousePos)}
-    >
-      <Layer>
-        {Object.keys(nodes).map((nodeKey, i) => {
-          let node = nodes[nodeKey];
-          return (
-            <Node
-              key={i}
-              id={nodeKey}
-              x={node.x}
-              y={node.y}
-              text={node.text}
-              selected={node.selected}
-              toggleSelected={toggleSelected}
-              updateNodePos={updateNodePos}
-              updateNodeText={updateNodeText}
-              deleteNode={deleteNode}
-              mousePos={mousePos}
-              editorMode={editorMode}
-              setEditorMode={setEditorMode}
-              onClick={() => {
-                if (argBeingCreated !== null) {
-                  finishCreatingArgument(node);
-                }
-              }}
-            ></Node>
-          );
-        })}
-        {Object.keys(args).map((argKey, i) => {
-          let arg = args[argKey];
-          return (
-            <Argument
-              key={i}
-              id={argKey}
-              mousePos={mousePos}
-              creating={arg.creating}
-              premises={arg.premises}
-              conclusion={arg.conclusion}
-            ></Argument>
-          );
-        })}
-        {Object.keys(conflicts).map((conflictKey, i) => {
-          let conf = conflicts[conflictKey];
-          return (
-            <Conflict key={i} id={conflictKey} nodes={conf.nodes}></Conflict>
-          );
-        })}
-        <EditorMenu
-          editorMode={editorMode}
-          setEditorMode={setEditorMode}
-          requestedEditorMode={requestedEditorMode}
-          visibilityCondition={() => {
-            return editorMode.create.node || editorMode.create.edge;
-          }}
-          mousePos={mousePos}
-          parentPos={{ x: 0, y: 0 }}
-          menu={<Group>{creationEditorMenuElements}</Group>}
-        ></EditorMenu>
-      </Layer>
-    </Stage>
+    <div>
+      <Stage
+        width={initialCanvasSize.width}
+        height={initialCanvasSize.height}
+        x={canvasPos.x}
+        y={canvasPos.y}
+        onMouseMove={trackMouse}
+        onDblClick={() => spawnNode(mousePos)}
+        draggable
+        onDragMove={(e) => {
+          var pos = e.currentTarget.getAbsolutePosition();
+          setCanvasPos(pos);
+        }}
+        style={{
+          margin: "0.5rem",
+          backgroundColor: "#eee",
+          display: "inline-block",
+        }}
+      >
+        <Layer>
+          {Object.keys(nodes).map((nodeKey, i) => {
+            let node = nodes[nodeKey];
+            return (
+              <Node
+                key={i}
+                id={nodeKey}
+                x={node.x}
+                y={node.y}
+                text={node.text}
+                selected={node.selected}
+                toggleSelected={toggleSelected}
+                updateNodePos={updateNodePos}
+                updateNodeText={updateNodeText}
+                deleteNode={deleteNode}
+                mousePos={mousePos}
+                editorMode={editorMode}
+                setEditorMode={setEditorMode}
+                onClick={() => {
+                  if (argBeingCreated !== null) {
+                    finishCreatingArgument(node);
+                  }
+                }}
+              ></Node>
+            );
+          })}
+          {Object.keys(args).map((argKey, i) => {
+            let arg = args[argKey];
+            return (
+              <Argument
+                key={i}
+                id={argKey}
+                mousePos={mousePos}
+                creating={arg.creating}
+                premises={arg.premises}
+                conclusion={arg.conclusion}
+              ></Argument>
+            );
+          })}
+          {Object.keys(conflicts).map((conflictKey, i) => {
+            let conf = conflicts[conflictKey];
+            return (
+              <Conflict key={i} id={conflictKey} nodes={conf.nodes}></Conflict>
+            );
+          })}
+          <EditorMenu
+            editorMode={editorMode}
+            setEditorMode={setEditorMode}
+            requestedEditorMode={requestedEditorMode}
+            visibilityCondition={() => {
+              return editorMode.create.node || editorMode.create.edge;
+            }}
+            mousePos={mousePos}
+            parentPos={{ x: 0, y: 0 }}
+            menu={<Group>{creationEditorMenuElements}</Group>}
+          ></EditorMenu>
+        </Layer>
+      </Stage>
+    </div>
   );
 };
 
