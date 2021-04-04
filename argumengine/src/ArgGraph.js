@@ -12,6 +12,7 @@ import {
 } from "react-konva";
 import Konva from "konva";
 import useImage from "use-image";
+import { NetworkCellRounded } from "@material-ui/icons";
 
 const defaultEditorMode = {
   create: { node: false, edge: false },
@@ -452,7 +453,8 @@ const ArgGraph = () => {
     var nodeToDelete = nodes[selectedId];
     var argsToDelete = nodeToDelete.connectedArgs;
     Object.keys(argsToDelete).forEach((argId) => {
-      deleteArg(argId);
+      if (argId.indexOf("arg") === -1) deleteConf(argId);
+      else deleteArg(argId);
     });
     delete nodes[selectedId];
     setNodes(nodes);
@@ -527,6 +529,24 @@ const ArgGraph = () => {
     var newConf = { id: nextAvailiableId, nodes: conflictingNodes };
     newConfs["conf" + newConf.id] = newConf;
     setConflicts(newConfs);
+    var connectedNodes = newConf.nodes;
+    var newNodes = nodes;
+    for (var i = 0; i < connectedNodes.length; i++) {
+      var node = newNodes["node" + connectedNodes[i].id];
+      node.connectedArgs["conf" + newConf.id] = "conf" + newConf.id;
+    }
+    setNodes(newNodes);
+  };
+
+  const deleteConf = (id) => {
+    var confToDelete = conflicts[id];
+    var nodesToUpdate = confToDelete.nodes;
+    nodesToUpdate.forEach((node) => {
+      delete node.connectedArgs[id];
+    });
+    setNodes(nodes);
+    delete conflicts[id];
+    setArgs(args);
   };
 
   var creationEditorMenuElements = [];
