@@ -415,6 +415,17 @@ const ArgGraph = () => {
     y: -initialCanvasSize.height / 2,
   };
   const [canvasPos, setCanvasPos] = React.useState(initialCanvasPos);
+  const [canvasScale, setCanvasScale] = React.useState(1);
+  const canvasScaleFactor = 1.05;
+  const scaleByScrolling = (e) => {
+    e.evt.preventDefault();
+    var oldScale = canvasScale;
+    var newScale =
+      e.evt.deltaY < 0
+        ? oldScale * canvasScaleFactor
+        : oldScale / canvasScaleFactor;
+    setCanvasScale(newScale);
+  };
 
   const getSelected = () => {
     var selectedNodes = Object.keys(nodes).map((key) => {
@@ -436,12 +447,15 @@ const ArgGraph = () => {
     console.log(nodes);
     nodes[selectedId].selected = !nodes[selectedId].selected;
     setNodes(nodes);
+    console.log("adjusted mouse pos: ", mousePos);
   };
 
   const [mousePos, setMousePos] = React.useState();
   const trackMouse = (e) => {
     var pos = e.currentTarget.getPointerPosition();
     pos = getRelativePosition(canvasPos, pos);
+    //unscale the mouse pos to ensure it doesn't overshoot
+    pos = { x: pos.x / canvasScale, y: pos.y / canvasScale };
     setMousePos(pos);
   };
 
@@ -618,6 +632,8 @@ const ArgGraph = () => {
           backgroundColor: "#eee",
           display: "inline-block",
         }}
+        scale={{ x: canvasScale, y: canvasScale }}
+        onWheel={scaleByScrolling}
       >
         <Layer>
           {Object.keys(nodes).map((nodeKey, i) => {
