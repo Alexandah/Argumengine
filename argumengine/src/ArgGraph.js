@@ -424,7 +424,20 @@ const ArgGraph = () => {
       e.evt.deltaY < 0
         ? oldScale * canvasScaleFactor
         : oldScale / canvasScaleFactor;
+    /** 
+        var zoomTowardsPos = {
+      x: mousePos.x - ((mousePos.x - canvasPos.x) / oldScale) * newScale,
+      y: mousePos.y - ((mousePos.y - canvasPos.y) / oldScale) * newScale,
+    };
+    */
+    //var zoomTowardsPos = mousePos;
+    var zoomTowardsPos = {
+      x: mousePos.x * newScale,
+      y: mousePos.y * newScale,
+    };
+    console.log("zooming towards: ", zoomTowardsPos);
     setCanvasScale(newScale);
+    setCanvasPos(zoomTowardsPos);
   };
 
   const getSelected = () => {
@@ -456,6 +469,7 @@ const ArgGraph = () => {
     pos = getRelativePosition(canvasPos, pos);
     //unscale the mouse pos to ensure it doesn't overshoot
     pos = { x: pos.x / canvasScale, y: pos.y / canvasScale };
+    console.log("trackedMousePos: ", mousePos);
     setMousePos(pos);
   };
 
@@ -633,7 +647,9 @@ const ArgGraph = () => {
           display: "inline-block",
         }}
         scale={{ x: canvasScale, y: canvasScale }}
-        onWheel={scaleByScrolling}
+        onWheel={(e) => {
+          scaleByScrolling(e);
+        }}
       >
         <Layer>
           {Object.keys(nodes).map((nodeKey, i) => {
