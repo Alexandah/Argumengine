@@ -396,6 +396,79 @@ const Conflict = ({ nodes }) => {
   return makeConflictEdge();
 };
 
+class NodeAbstraction {
+  constructor(nodesAbstractedAway, nodeAbstractedTo) {
+    this.nodesAbstractedAway = nodesAbstractedAway;
+    this.nodeAbstractedTo = nodeAbstractedTo;
+  }
+}
+
+class ZoomHierarchyLevel {
+  constructor(nodes, args, conflicts, prev, next) {
+    this.nodes = nodes;
+    this.args = args;
+    this.conficts = conflicts;
+    this.prev = prev;
+    this.next = next;
+  }
+
+  makeNextLevel(nodeAbstractions) {
+    var newNodes = {};
+    var newArgs = {};
+    var newConflicts = {};
+    nodeAbstractions.forEach((nodeAbs) => {
+      var nodeAbstractedTo = nodeAbs.nodeAbstractedTo;
+      var newNode = new NodeData(
+        +new Date(),
+        nodeAbstractedTo.x,
+        nodeAbstractedTo.y
+      );
+      newNode.text = nodeAbstractedTo.text;
+      newNode.connectedArgs = {};
+      //this is going to get messed up bc connectedArgs
+      //also stores conflicts. fix
+      nodeAbstractedTo.getOutArgs().forEach((arg) => {
+        newNode.connectedArgs["arg" + arg.id] = arg;
+      });
+      newNodes["node" + newNode.id] = newNode;
+    });
+    var unabstractedNodes;
+    //yadadada, update data for new layer, then:
+    var nextLevel = new ZoomHierarchyLevel(
+      newNodes,
+      newArgs,
+      newConflicts,
+      this,
+      null
+    );
+    this.next = nextLevel;
+    return nextLevel;
+  }
+}
+
+class NodeData {
+  constructor(id, x, y) {
+    this.id = id;
+    this.x = x;
+    this.y = y;
+    this.text = "";
+    this.selected = false;
+    this.connectedArgs = {};
+  }
+
+  getOutArgs() {
+    var outGoingArgs = Object.keys(this.args).filter((key) => {
+      var arg = this.args[key];
+      var isAPremise = arg.premises.indexOf(this) != -1;
+      return isAPremise;
+    });
+    outGoingArgs.map((key) => {
+      var arg = this.args[key];
+      return arg;
+    });
+    return outGoingArgs;
+  }
+}
 const ArgGraph = () => {
   const [editorMode, setEditorMode] = useState(defaultEditorMode);
   const [nextAvailiableId, setNextAvailiableId] = useState(0);
@@ -405,6 +478,13 @@ const ArgGraph = () => {
   const [conflicts, setConflicts] = React.useState({});
 
   const [argBeingCreated, setArgBeingCreated] = React.useState(null);
+
+  const [zoomHierarchy, setZoomHierarchy] = React.useState([]);
+  const [
+    currentZoomHierarchyLevel,
+    setCurrentZoomHierarchyLevel,
+  ] = React.useState(0);
+  const [nodeGroups, setNodeGroups] = React.useState([]);
 
   const initialCanvasSize = {
     width: window.innerWidth,
@@ -475,14 +555,7 @@ const ArgGraph = () => {
 
   const spawnNode = (pos) => {
     var newNodes = nodes;
-    var newNode = {
-      id: nextAvailiableId,
-      x: pos.x,
-      y: pos.y,
-      text: "",
-      selected: false,
-      connectedArgs: {},
-    };
+    var newNode = new NodeData(nextAvailiableId, pos.x, pos.y);
     newNodes["node" + nextAvailiableId] = newNode;
     console.log("mousePos: ", mousePos);
     console.log("newNode: ", newNode);
