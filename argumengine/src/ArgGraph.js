@@ -437,7 +437,7 @@ const ArgGraph = () => {
     };
     console.log("zooming towards: ", zoomTowardsPos);
     setCanvasScale(newScale);
-    setCanvasPos(zoomTowardsPos);
+    //setCanvasPos(zoomTowardsPos);
   };
 
   const getSelected = () => {
