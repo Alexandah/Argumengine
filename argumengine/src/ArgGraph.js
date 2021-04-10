@@ -25,6 +25,10 @@ function getRelativePosition(startPos, destPos) {
   return relativePos;
 }
 
+function makeUniqueId() {
+  return +new Date();
+}
+
 const EditorMenu = ({
   menu,
   mousePos,
@@ -419,7 +423,7 @@ class ZoomHierarchyLevel {
     nodeAbstractions.forEach((nodeAbs) => {
       var nodeAbstractedTo = nodeAbs.nodeAbstractedTo;
       var newNode = new NodeData(
-        +new Date(),
+        makeUniqueId(),
         nodeAbstractedTo.x,
         nodeAbstractedTo.y
       );
@@ -453,22 +457,64 @@ class NodeData {
     this.y = y;
     this.text = "";
     this.selected = false;
-    this.connectedArgs = {};
+    this.connectedEdges = {};
+  }
+
+  getConnectedEdgesAsList() {
+    var connectedEdgesList = Object.keys(this.connectedEdges).map((key) => {
+      return this.connectedEdges[key];
+    });
+    console.log("connectedEdgesList: ", connectedEdgesList);
+    return connectedEdgesList;
+  }
+
+  getConnectedArgs() {
+    var connectedEdgesList = this.getConnectedEdgesAsList();
+    var connectedArgs = connectedEdgesList.filter((edge) => {
+      var isAnArg = edge instanceof ArgumentData;
+      return isAnArg;
+    });
+    return connectedArgs;
+  }
+
+  getConnectedConflicts() {
+    var connectedEdgesList = this.getConnectedEdgesAsList();
+    var connectedConflicts = connectedEdgesList.filter((edge) => {
+      var isAConflict = edge instanceof ConflictData;
+      return isAConflict;
+    });
+    return connectedConflicts;
   }
 
   getOutArgs() {
-    var outGoingArgs = Object.keys(this.args).filter((key) => {
-      var arg = this.args[key];
-      var isAPremise = arg.premises.indexOf(this) != -1;
-      return isAPremise;
-    });
-    outGoingArgs.map((key) => {
-      var arg = this.args[key];
-      return arg;
+    var outGoingArgs = this.getConnectedArgs().filter((arg) => {
+      var thisNodeIsAPremise = arg.premises.indexOf(this) != -1;
+      return thisNodeIsAPremise;
     });
     return outGoingArgs;
   }
 }
+
+class ArgumentData {
+  constructor(id, creating, premises, conclusion) {
+    this.id = id;
+    this.creating = creating;
+    this.premises = premises;
+    this.conclusion = conclusion;
+  }
+
+  getConnectedNodes() {
+    return this.premises.concat(this.conclusion);
+  }
+}
+
+class ConflictData {
+  constructor(id, nodes) {
+    this.id = id;
+    this.nodes = nodes;
+  }
+}
+
 const ArgGraph = () => {
   const [editorMode, setEditorMode] = useState(defaultEditorMode);
   const [nextAvailiableId, setNextAvailiableId] = useState(0);
@@ -538,6 +584,8 @@ const ArgGraph = () => {
   const toggleSelected = (selectedId) => {
     console.log("toggleSelected running on id: " + selectedId);
     console.log(nodes);
+    console.log(args);
+    console.log(conflicts);
     nodes[selectedId].selected = !nodes[selectedId].selected;
     setNodes(nodes);
     console.log("adjusted mouse pos: ", mousePos);
@@ -549,7 +597,6 @@ const ArgGraph = () => {
     pos = getRelativePosition(canvasPos, pos);
     //unscale the mouse pos to ensure it doesn't overshoot
     pos = { x: pos.x / canvasScale, y: pos.y / canvasScale };
-    console.log("trackedMousePos: ", mousePos);
     setMousePos(pos);
   };
 
@@ -565,10 +612,11 @@ const ArgGraph = () => {
 
   const deleteNode = (selectedId) => {
     var nodeToDelete = nodes[selectedId];
-    var argsToDelete = nodeToDelete.connectedArgs;
-    Object.keys(argsToDelete).forEach((argId) => {
-      if (argId.indexOf("arg") === -1) deleteConf(argId);
-      else deleteArg(argId);
+    var edgesToDelete = nodeToDelete.getConnectedEdgesAsList();
+    edgesToDelete.forEach((edge) => {
+      console.log("edge: ", edge);
+      if (edge instanceof ConflictData) deleteConf(edge.id);
+      else deleteArg(edge.id);
     });
     delete nodes[selectedId];
     setNodes(nodes);
@@ -588,12 +636,12 @@ const ArgGraph = () => {
 
   const beginCreatingArgument = (premises) => {
     var newArgs = args;
-    var newArg = {
-      id: nextAvailiableId,
-      creating: true,
-      premises: premises,
-      conclusion: null,
-    };
+    var newArg = new ArgumentData(
+      "arg" + nextAvailiableId,
+      true,
+      premises,
+      null
+    );
     newArgs["arg" + nextAvailiableId] = newArg;
     setNextAvailiableId(nextAvailiableId + 1);
     setArgs(newArgs);
@@ -615,24 +663,37 @@ const ArgGraph = () => {
     var newArgs = args;
     arg.creating = false;
     arg.conclusion = conclusion;
-    newArgs["arg" + arg.id] = arg;
+    newArgs[arg.id] = arg;
     setArgs(newArgs);
     setArgBeingCreated(null);
-    var connectedNodes = arg.premises.concat(conclusion);
+    var connectedNodes = arg.getConnectedNodes();
     var newNodes = nodes;
+    /*test after main changes
+    connectedNodes.forEach(node => {
+      node.connectedEdges["arg" + arg.id] = "arg" + arg.id;
+    })
+    */
     for (var i = 0; i < connectedNodes.length; i++) {
       var node = newNodes["node" + connectedNodes[i].id];
-      node.connectedArgs["arg" + arg.id] = "arg" + arg.id;
+      node.connectedEdges[arg.id] = arg;
+      console.log("updated node after connecting arg: ", node);
     }
+    console.log(newNodes);
     setNodes(newNodes);
   };
 
   const deleteArg = (id) => {
     var argToDelete = args[id];
-    console.log("deleting arg: " + id);
-    var nodesToUpdate = argToDelete.premises.concat(argToDelete.conclusion);
+    console.log("deleting arg w/ id: " + id, argToDelete);
+    var nodesToUpdate = argToDelete.getConnectedNodes();
     nodesToUpdate.forEach((node) => {
-      delete node.connectedArgs[id];
+      console.log(
+        "updating connected node: ",
+        node,
+        "on edge: ",
+        node.connectedEdges[id]
+      );
+      delete node.connectedEdges[id];
     });
     setNodes(nodes);
     delete args[id];
@@ -641,14 +702,14 @@ const ArgGraph = () => {
 
   const spawnConf = (conflictingNodes) => {
     var newConfs = conflicts;
-    var newConf = { id: nextAvailiableId, nodes: conflictingNodes };
-    newConfs["conf" + newConf.id] = newConf;
+    var newConf = new ConflictData("conf" + nextAvailiableId, conflictingNodes);
+    newConfs[newConf.id] = newConf;
     setConflicts(newConfs);
     var connectedNodes = newConf.nodes;
     var newNodes = nodes;
     for (var i = 0; i < connectedNodes.length; i++) {
       var node = newNodes["node" + connectedNodes[i].id];
-      node.connectedArgs["conf" + newConf.id] = "conf" + newConf.id;
+      node.connectedEdges[newConf.id] = newConf;
     }
     setNodes(newNodes);
   };
@@ -657,7 +718,7 @@ const ArgGraph = () => {
     var confToDelete = conflicts[id];
     var nodesToUpdate = confToDelete.nodes;
     nodesToUpdate.forEach((node) => {
-      delete node.connectedArgs[id];
+      delete node.connectedEdges[id];
     });
     setNodes(nodes);
     delete conflicts[id];
