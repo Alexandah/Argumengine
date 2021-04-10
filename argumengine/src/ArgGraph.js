@@ -451,8 +451,8 @@ class ZoomHierarchyLevel {
 }
 
 class NodeData {
-  constructor(id, x, y) {
-    this.id = id;
+  constructor(x, y) {
+    this.id = makeUniqueId();
     this.x = x;
     this.y = y;
     this.text = "";
@@ -496,8 +496,8 @@ class NodeData {
 }
 
 class ArgumentData {
-  constructor(id, creating, premises, conclusion) {
-    this.id = id;
+  constructor(creating, premises, conclusion) {
+    this.id = makeUniqueId();
     this.creating = creating;
     this.premises = premises;
     this.conclusion = conclusion;
@@ -509,15 +509,14 @@ class ArgumentData {
 }
 
 class ConflictData {
-  constructor(id, nodes) {
-    this.id = id;
+  constructor(nodes) {
+    this.id = makeUniqueId();
     this.nodes = nodes;
   }
 }
 
 const ArgGraph = () => {
   const [editorMode, setEditorMode] = useState(defaultEditorMode);
-  const [nextAvailiableId, setNextAvailiableId] = useState(0);
 
   const [nodes, setNodes] = React.useState({});
   const [args, setArgs] = React.useState({});
@@ -602,11 +601,10 @@ const ArgGraph = () => {
 
   const spawnNode = (pos) => {
     var newNodes = nodes;
-    var newNode = new NodeData(nextAvailiableId, pos.x, pos.y);
-    newNodes["node" + nextAvailiableId] = newNode;
+    var newNode = new NodeData(pos.x, pos.y);
+    newNodes[newNode.id] = newNode;
     console.log("mousePos: ", mousePos);
     console.log("newNode: ", newNode);
-    setNextAvailiableId(nextAvailiableId + 1);
     setNodes(newNodes);
   };
 
@@ -636,14 +634,8 @@ const ArgGraph = () => {
 
   const beginCreatingArgument = (premises) => {
     var newArgs = args;
-    var newArg = new ArgumentData(
-      "arg" + nextAvailiableId,
-      true,
-      premises,
-      null
-    );
-    newArgs["arg" + nextAvailiableId] = newArg;
-    setNextAvailiableId(nextAvailiableId + 1);
+    var newArg = new ArgumentData(true, premises, null);
+    newArgs[newArg.id] = newArg;
     setArgs(newArgs);
     setArgBeingCreated(newArg);
   };
@@ -652,7 +644,7 @@ const ArgGraph = () => {
     var newArgs = args;
     var argToCancel = argBeingCreated;
     if (argToCancel !== null) {
-      delete newArgs["arg" + argBeingCreated.id];
+      delete newArgs[argBeingCreated.id];
       setArgs(newArgs);
       setArgBeingCreated(null);
     }
@@ -674,7 +666,7 @@ const ArgGraph = () => {
     })
     */
     for (var i = 0; i < connectedNodes.length; i++) {
-      var node = newNodes["node" + connectedNodes[i].id];
+      var node = newNodes[connectedNodes[i].id];
       node.connectedEdges[arg.id] = arg;
       console.log("updated node after connecting arg: ", node);
     }
@@ -702,13 +694,13 @@ const ArgGraph = () => {
 
   const spawnConf = (conflictingNodes) => {
     var newConfs = conflicts;
-    var newConf = new ConflictData("conf" + nextAvailiableId, conflictingNodes);
+    var newConf = new ConflictData(conflictingNodes);
     newConfs[newConf.id] = newConf;
     setConflicts(newConfs);
     var connectedNodes = newConf.nodes;
     var newNodes = nodes;
     for (var i = 0; i < connectedNodes.length; i++) {
-      var node = newNodes["node" + connectedNodes[i].id];
+      var node = newNodes[connectedNodes[i].id];
       node.connectedEdges[newConf.id] = newConf;
     }
     setNodes(newNodes);
