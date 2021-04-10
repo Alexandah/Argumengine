@@ -29,6 +29,18 @@ function makeUniqueId() {
   return +new Date();
 }
 
+function deepcopy(object) {
+  if (object === null || typeof object !== "object") {
+    return object;
+  }
+  // give temporary-storage the original obj's constructor
+  var tempStorage = object.constructor();
+  for (var key in object) {
+    tempStorage[key] = deepcopy(object[key]);
+  }
+  return tempStorage;
+}
+
 const EditorMenu = ({
   menu,
   mousePos,
@@ -411,32 +423,43 @@ class ZoomHierarchyLevel {
   constructor(nodes, args, conflicts, prev, next) {
     this.nodes = nodes;
     this.args = args;
-    this.conficts = conflicts;
+    this.conflicts = conflicts;
     this.prev = prev;
     this.next = next;
   }
 
+  //this assumes that all the given node abstractions are valid
   makeNextLevel(nodeAbstractions) {
-    var newNodes = {};
+    var newNodes = deepcopy(this.nodes);
     var newArgs = {};
     var newConflicts = {};
+
+    const nodeIsUnabstracted = (node) => {
+      for (var i = 0; i < nodeAbstractions.length; i++) {
+        var nodeAbs = nodeAbstractions[i];
+        var nodeIsInAbstraction =
+          nodeAbs.nodesAbstractedAway.indexOf(node) !== -1 ||
+          node === nodeAbs.nodeAbstractedTo;
+        if (nodeIsInAbstraction) return false;
+      }
+      return true;
+    };
+    Object.keys(newNodes).forEach((id) => {
+      var node = this.newNodes[id];
+      if (!nodeIsUnabstracted(node)) delete newNodes[id];
+    });
+
     nodeAbstractions.forEach((nodeAbs) => {
       var nodeAbstractedTo = nodeAbs.nodeAbstractedTo;
-      var newNode = new NodeData(
-        makeUniqueId(),
-        nodeAbstractedTo.x,
-        nodeAbstractedTo.y
-      );
+      var newNode = new NodeData(nodeAbstractedTo.x, nodeAbstractedTo.y);
       newNode.text = nodeAbstractedTo.text;
-      newNode.connectedArgs = {};
-      //this is going to get messed up bc connectedArgs
-      //also stores conflicts. fix
+      newNode.connectedEdges = {};
       nodeAbstractedTo.getOutArgs().forEach((arg) => {
-        newNode.connectedArgs["arg" + arg.id] = arg;
+        newNode.connectedEdges[arg.id] = arg;
       });
-      newNodes["node" + newNode.id] = newNode;
+      newNodes[newNode.id] = newNode;
     });
-    var unabstractedNodes;
+
     //yadadada, update data for new layer, then:
     var nextLevel = new ZoomHierarchyLevel(
       newNodes,
