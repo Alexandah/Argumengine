@@ -444,10 +444,11 @@ class ZoomHierarchyLevel {
 
   //this assumes that all the given node abstractions are valid
   makeNextLevel(nodeAbstractions) {
-    var newNodes = deepcopy(this.nodes);
+    var newNodes = {};
     var newArgs = {};
     var newConflicts = {};
 
+var newToOldNodeCorrespondence = {}
     const nodeIsUnabstracted = (node) => {
       for (var i = 0; i < nodeAbstractions.length; i++) {
         var nodeAbs = nodeAbstractions[i];
@@ -458,21 +459,65 @@ class ZoomHierarchyLevel {
       }
       return true;
     };
-    Object.keys(newNodes).forEach((id) => {
-      var node = this.newNodes[id];
-      if (!nodeIsUnabstracted(node)) delete newNodes[id];
+    var unabstractedNodes = {};
+    Object.keys(this.nodes).forEach((id) => {
+      var node = this.nodes[id];
+      if (nodeIsUnabstracted(node)) unabstractedNodes[id] = node; 
     });
 
+    var abstractedNodes = {}
     nodeAbstractions.forEach((nodeAbs) => {
       var nodeAbstractedTo = nodeAbs.nodeAbstractedTo;
       var newNode = new NodeData(nodeAbstractedTo.x, nodeAbstractedTo.y);
       newNode.text = nodeAbstractedTo.text;
       newNode.connectedEdges = {};
       nodeAbstractedTo.getOutArgs().forEach((arg) => {
+        //does not ensure that edges connect only to the unabstracted
         newNode.connectedEdges[arg.id] = arg;
       });
-      newNodes[newNode.id] = newNode;
+      //need to handle the conflict case too
+      newToOldNodeCorrespondence[newNode] = nodeAbstractedTo;
+      abstractedNodes[newNode.id] = newNode;
     });
+
+    newNodes = {
+      ...unabstractedNodes,
+      ...abstractedNodes
+    }
+
+    //first, add the edges between the unabstracted nodes.
+    //they are safe.
+    const edgeConnectsOnlyUnabstractedNodes = (edge) => {
+      var connectedNodes = edge.getConnectedNodes();
+      connectedNodes.forEach(node => {
+        if(!nodeIsUnabstracted(node)) return false;
+      })
+      return true;
+    }
+    var unabstractedEdges = {}
+    Object.keys(unabstractedNodes).forEach(id => {
+      var unabstractedNode = unabstractedNodes[id]
+      var connectedEdges = unabstractedNode.getConnectedEdgesAsList();
+      connectedEdges.forEach(edge => {
+        if (edgeConnectsOnlyUnabstractedNodes(edge)) unabstractedEdges[edge.id] = edge;
+      })
+    })
+
+    //next, add edges between nodes that have been abstracted to
+    const edgeConnectsOnlyAbstractedNodes = (edge) => {
+      var connectedNodes = edge.getConnectedNodes();
+      connectedNodes.forEach(node => {
+        if(nodeIsUnabstracted(node)) return false;
+      })
+      return true;
+    }
+    Object.keys(abstractedNodes).forEach(id => {
+      var abstractedNode = abstractedNodes[id];
+      var connectedEdges = abstractedNode.getConnectedEdgesAsList();
+      connectedEdges.forEach(edge => {
+        if(edgeConnectsOnlyAbstractedNodes(edge))
+      })
+    })
 
     //yadadada, update data for new layer, then:
     var nextLevel = new ZoomHierarchyLevel(
@@ -530,6 +575,14 @@ class NodeData {
     });
     return outGoingArgs;
   }
+
+  isAdjacentTo(node){
+    this.getConnectedEdgesAsList().forEach(edge => {
+      var nodeIsConnected = edge.getConnectedNodes().indexOf(node) !== -1;
+      if (nodeIsConnected) return true;
+    })
+    return false;
+  }
 }
 
 class ArgumentData {
@@ -549,6 +602,10 @@ class ConflictData {
   constructor(nodes) {
     this.id = makeUniqueId();
     this.nodes = nodes;
+  }
+
+  getConnectedNodes() {
+    return this.nodes;
   }
 }
 
