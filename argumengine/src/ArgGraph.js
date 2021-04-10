@@ -414,8 +414,22 @@ const Conflict = ({ nodes }) => {
 
 class NodeAbstraction {
   constructor(nodesAbstractedAway, nodeAbstractedTo) {
-    this.nodesAbstractedAway = nodesAbstractedAway;
-    this.nodeAbstractedTo = nodeAbstractedTo;
+    //this will cause errors when invalid, since the fields will be undefined
+    if (isValidNodeAbstraction(nodesAbstractedAway, nodeAbstractedTo)) {
+      console.log(
+        "Invalid node abstraction! Violating nodes: ",
+        nodesAbstractedAway,
+        nodesAbstractedTo
+      );
+      this.nodesAbstractedAway = nodesAbstractedAway;
+      this.nodeAbstractedTo = nodeAbstractedTo;
+    }
+  }
+
+  //when I have figured out how to describe the validity, this will become more detailed
+  //for now we will just assume it is valid
+  isValidNodeAbstraction(nodesAbstractedAway, nodeAbstractedTo) {
+    return true;
   }
 }
 
