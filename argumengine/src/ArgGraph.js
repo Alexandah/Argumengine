@@ -415,11 +415,11 @@ const Conflict = ({ nodes }) => {
 class NodeAbstraction {
   constructor(nodesAbstractedAway, nodeAbstractedTo) {
     //this will cause errors when invalid, since the fields will be undefined
-    if (isValidNodeAbstraction(nodesAbstractedAway, nodeAbstractedTo)) {
+    if (this.isValidNodeAbstraction(nodesAbstractedAway, nodeAbstractedTo)) {
       console.log(
         "Invalid node abstraction! Violating nodes: ",
         nodesAbstractedAway,
-        nodesAbstractedTo
+        nodeAbstractedTo
       );
       this.nodesAbstractedAway = nodesAbstractedAway;
       this.nodeAbstractedTo = nodeAbstractedTo;
@@ -448,7 +448,7 @@ class ZoomHierarchyLevel {
     var newArgs = {};
     var newConflicts = {};
 
-var newToOldNodeCorrespondence = {}
+    var newToOldNodeCorrespondence = {};
     const nodeIsUnabstracted = (node) => {
       for (var i = 0; i < nodeAbstractions.length; i++) {
         var nodeAbs = nodeAbstractions[i];
@@ -462,10 +462,10 @@ var newToOldNodeCorrespondence = {}
     var unabstractedNodes = {};
     Object.keys(this.nodes).forEach((id) => {
       var node = this.nodes[id];
-      if (nodeIsUnabstracted(node)) unabstractedNodes[id] = node; 
+      if (nodeIsUnabstracted(node)) unabstractedNodes[id] = node;
     });
 
-    var abstractedNodes = {}
+    var abstractedNodes = {};
     nodeAbstractions.forEach((nodeAbs) => {
       var nodeAbstractedTo = nodeAbs.nodeAbstractedTo;
       var newNode = new NodeData(nodeAbstractedTo.x, nodeAbstractedTo.y);
@@ -482,42 +482,43 @@ var newToOldNodeCorrespondence = {}
 
     newNodes = {
       ...unabstractedNodes,
-      ...abstractedNodes
-    }
+      ...abstractedNodes,
+    };
 
     //first, add the edges between the unabstracted nodes.
     //they are safe.
     const edgeConnectsOnlyUnabstractedNodes = (edge) => {
       var connectedNodes = edge.getConnectedNodes();
-      connectedNodes.forEach(node => {
-        if(!nodeIsUnabstracted(node)) return false;
-      })
+      connectedNodes.forEach((node) => {
+        if (!nodeIsUnabstracted(node)) return false;
+      });
       return true;
-    }
-    var unabstractedEdges = {}
-    Object.keys(unabstractedNodes).forEach(id => {
-      var unabstractedNode = unabstractedNodes[id]
+    };
+    var unabstractedEdges = {};
+    Object.keys(unabstractedNodes).forEach((id) => {
+      var unabstractedNode = unabstractedNodes[id];
       var connectedEdges = unabstractedNode.getConnectedEdgesAsList();
-      connectedEdges.forEach(edge => {
-        if (edgeConnectsOnlyUnabstractedNodes(edge)) unabstractedEdges[edge.id] = edge;
-      })
-    })
+      connectedEdges.forEach((edge) => {
+        if (edgeConnectsOnlyUnabstractedNodes(edge))
+          unabstractedEdges[edge.id] = edge;
+      });
+    });
 
     //next, add edges between nodes that have been abstracted to
     const edgeConnectsOnlyAbstractedNodes = (edge) => {
       var connectedNodes = edge.getConnectedNodes();
-      connectedNodes.forEach(node => {
-        if(nodeIsUnabstracted(node)) return false;
-      })
+      connectedNodes.forEach((node) => {
+        if (nodeIsUnabstracted(node)) return false;
+      });
       return true;
-    }
-    Object.keys(abstractedNodes).forEach(id => {
+    };
+    Object.keys(abstractedNodes).forEach((id) => {
       var abstractedNode = abstractedNodes[id];
       var connectedEdges = abstractedNode.getConnectedEdgesAsList();
-      connectedEdges.forEach(edge => {
-        if(edgeConnectsOnlyAbstractedNodes(edge))
-      })
-    })
+      connectedEdges.forEach((edge) => {
+        if (edgeConnectsOnlyAbstractedNodes(edge)) console.log("go away error");
+      });
+    });
 
     //yadadada, update data for new layer, then:
     var nextLevel = new ZoomHierarchyLevel(
@@ -568,6 +569,36 @@ class NodeData {
     return connectedConflicts;
   }
 
+  getInArgs() {
+    var inComingArgs = this.getConnectedArgs().filter((arg) => {
+      var thisNodeIsAConclusion = arg.conclusion === this;
+      return thisNodeIsAConclusion;
+    });
+    return inComingArgs;
+  }
+
+  getParents() {
+    var inArgs = this.getInArgs();
+    var parents = [];
+    inArgs.forEach((arg) => {
+      parents = parents.concat(arg.premises);
+    });
+    return parents;
+  }
+
+  getAncestors() {
+    const recurseAncestors = (node) => {
+      var parents = node.getParents();
+      if (parents.length == 0) return [];
+      var ancestors = [parents];
+      parents.forEach((parent) => {
+        ancestors.concat(recurseAncestors(parent));
+      });
+      return ancestors;
+    };
+    return recurseAncestors(this);
+  }
+
   getOutArgs() {
     var outGoingArgs = this.getConnectedArgs().filter((arg) => {
       var thisNodeIsAPremise = arg.premises.indexOf(this) != -1;
@@ -576,12 +607,33 @@ class NodeData {
     return outGoingArgs;
   }
 
-  isAdjacentTo(node){
-    this.getConnectedEdgesAsList().forEach(edge => {
+  getChildren() {
+    var outArgs = this.getOutArgs();
+    var children = [];
+    outArgs.forEach((arg) => {
+      children.push(arg.conclusion);
+    });
+    return children;
+  }
+
+  isAdjacentTo(node) {
+    this.getConnectedEdgesAsList().forEach((edge) => {
       var nodeIsConnected = edge.getConnectedNodes().indexOf(node) !== -1;
       if (nodeIsConnected) return true;
-    })
+    });
     return false;
+  }
+
+  getAbstractionSet() {
+    var abstractionSet = this.getAncestors();
+    abstractionSet.forEach((node) => {
+      var children = node.getChildren();
+      children.forEach((child) => {
+        var pathStaysInAbstractionSet = abstractionSet.indexOf(child) !== -1;
+        if (!pathStaysInAbstractionSet) return null;
+      });
+    });
+    return abstractionSet;
   }
 }
 
