@@ -614,7 +614,7 @@ class NodeData {
       if (parents.length == 0) return [];
       var ancestors = parents;
       parents.forEach((parent) => {
-        ancestors.concat(recurseAncestors(parent));
+        ancestors = ancestors.concat(recurseAncestors(parent));
       });
       return ancestors;
     };
