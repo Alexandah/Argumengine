@@ -117,6 +117,7 @@ const Node = (props) => {
     if (props.selected) setShadowOpacity(selectedShadowOpacity);
     else setShadowOpacity(0);
   }, [props.selected]);
+  const [dashEnabled, setDashEnabled] = useState(false);
 
   const maxWidth = 150;
   const minWidth = 100;
@@ -233,6 +234,8 @@ const Node = (props) => {
         shadowOffsetX={15}
         shadowOffsetY={15}
         shadowOpacity={shadowOpacity}
+        dash={[10, 5]}
+        dashEnabled={dashEnabled}
       ></Rect>
       <Text
         text={props.text}
@@ -276,7 +279,8 @@ const Node = (props) => {
             <Text
               text={"Toggle"}
               onClick={() => {
-                props.toggleAbstracted(props.id);
+                if (props.toggleAbstracted(props.id))
+                  setDashEnabled(!dashEnabled);
               }}
               y={2 * deleteIconVerticalOffset}
             ></Text>
@@ -644,9 +648,7 @@ class NodeData {
 
   getAbstractionSet() {
     var abstractionSet = this.getAncestors();
-    console.log("ancestors: ", abstractionSet);
     abstractionSet.forEach((node) => {
-      console.log("getting abstraction set from ancestor: ", node);
       var children = node.getChildren();
       children.forEach((child) => {
         var pathStaysInAbstractionSet = abstractionSet.indexOf(child) !== -1;
@@ -887,12 +889,12 @@ const ArgGraph = () => {
 
   const toggleAbstracted = (id) => {
     var node = nodes[id];
-    node.isAbstracted = !node.isAbstracted;
-    var desiredAbstractionMode = node.isAbstracted;
     var abstractionSet = node.getAbstractionSet();
-    if (abstractionSet === null) return;
+    if (abstractionSet === null) return false;
+    var desiredAbstractionMode = !node.isAbstracted;
+    node.isAbstracted = desiredAbstractionMode;
     abstractionSet.forEach((abstractedNode) => {
-      abstractedNode.visible = desiredAbstractionMode;
+      abstractedNode.visible = !desiredAbstractionMode;
       abstractedNode.selected = false;
     });
     var abstractedEdges = [];
@@ -904,12 +906,13 @@ const ArgGraph = () => {
       });
     });
     abstractedEdges.forEach((edge) => {
-      edge.visible = desiredAbstractionMode;
+      edge.visible = !desiredAbstractionMode;
       edge.selected = false;
     });
     setNodes(nodes);
     setArgs(args);
     setConflicts(conflicts);
+    return true;
   };
 
   var creationEditorMenuElements = [];
