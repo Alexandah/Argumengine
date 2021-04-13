@@ -648,13 +648,17 @@ class NodeData {
 
   getAbstractionSet() {
     var abstractionSet = this.getAncestors();
+    var isValid = true;
     abstractionSet.forEach((node) => {
       var children = node.getChildren();
       children.forEach((child) => {
-        var pathStaysInAbstractionSet = abstractionSet.indexOf(child) !== -1;
-        if (!pathStaysInAbstractionSet) return null;
+        var pathStaysInAbstractionSet = abstractionSet.indexOf(child) !== 0;
+        var pathGoesToAbstractedNode = child === this;
+        var pathIsValid = pathStaysInAbstractionSet || pathGoesToAbstractedNode;
+        if (!pathIsValid) isValid = false;
       });
     });
+    if (!isValid) abstractionSet = null;
     return abstractionSet;
   }
 }
