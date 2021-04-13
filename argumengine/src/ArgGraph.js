@@ -202,8 +202,12 @@ const Node = (props) => {
   var requestedEditorMode = defaultEditorMode;
   if (mayShowEditorPanel) requestedEditorMode.edit.node = true;
 
+  var opacity = 1;
+  if (!props.visible) opacity = 0;
+
   return (
     <Group
+      opacity={opacity}
       x={props.x}
       y={props.y}
       draggable
@@ -269,6 +273,13 @@ const Node = (props) => {
                 props.deleteNode(props.id);
               }}
             ></Image>
+            <Text
+              text={"Toggle"}
+              onClick={() => {
+                props.toggleAbstracted(props.id);
+              }}
+              y={2 * deleteIconVerticalOffset}
+            ></Text>
           </Group>
         }
       ></EditorMenu>
@@ -324,7 +335,7 @@ const computeStartPointFromPremise = (premise) => {
   return { x: premise.x + width / 2, y: premise.y + height };
 };
 
-const Argument = ({ mousePos, creating, premises, conclusion }) => {
+const Argument = ({ visible, mousePos, creating, premises, conclusion }) => {
   const makePremiseToMergePointArrows = (premises, mergepoint) => {
     var arrows = [];
     for (var i = 0; i < premises.length; i++) {
@@ -367,7 +378,9 @@ const Argument = ({ mousePos, creating, premises, conclusion }) => {
     } else {
       arrows = makeMergePointToConclusionArrow(premises[0], conclusion);
     }
-    return <Group>{arrows}</Group>;
+    var opacity = 1;
+    if (!visible) opacity = 0;
+    return <Group opacity={opacity}>{arrows}</Group>;
   };
 
   var destNode;
@@ -380,7 +393,7 @@ const Argument = ({ mousePos, creating, premises, conclusion }) => {
   return makeArgumentEdge(premises, destNode);
 };
 
-const Conflict = ({ nodes }) => {
+const Conflict = ({ visible, nodes }) => {
   const makeNodeToMergePointLines = (mergepoint) => {
     var lines = [];
     for (var i = 0; i < nodes.length; i++) {
@@ -396,7 +409,7 @@ const Conflict = ({ nodes }) => {
     return lines;
   };
 
-  const makeConflictEdge = () => {
+  const makeConflictEdge = (opacity) => {
     var connectionPoints = nodes.map((node) => {
       return computeStartPointFromPremise(node);
     });
@@ -406,10 +419,14 @@ const Conflict = ({ nodes }) => {
       lines = makeNodeToMergePointLines(mergepoint);
     }
 
-    return <Group>{lines}</Group>;
+    var opacity = 1;
+    if (!visible) opacity = 0;
+    return <Group opacity={opacity}>{lines}</Group>;
   };
 
-  return makeConflictEdge();
+  var opacity = 1;
+  if (!visible) opacity = 0;
+  return makeConflictEdge(opacity);
 };
 
 class NodeAbstraction {
@@ -536,6 +553,8 @@ class ZoomHierarchyLevel {
 class NodeData {
   constructor(x, y) {
     this.id = makeUniqueId();
+    this.visible = true;
+    this.isAbstracted = false;
     this.x = x;
     this.y = y;
     this.text = "";
@@ -547,7 +566,6 @@ class NodeData {
     var connectedEdgesList = Object.keys(this.connectedEdges).map((key) => {
       return this.connectedEdges[key];
     });
-    console.log("connectedEdgesList: ", connectedEdgesList);
     return connectedEdgesList;
   }
 
@@ -590,7 +608,7 @@ class NodeData {
     const recurseAncestors = (node) => {
       var parents = node.getParents();
       if (parents.length == 0) return [];
-      var ancestors = [parents];
+      var ancestors = parents;
       parents.forEach((parent) => {
         ancestors.concat(recurseAncestors(parent));
       });
@@ -626,7 +644,9 @@ class NodeData {
 
   getAbstractionSet() {
     var abstractionSet = this.getAncestors();
+    console.log("ancestors: ", abstractionSet);
     abstractionSet.forEach((node) => {
+      console.log("getting abstraction set from ancestor: ", node);
       var children = node.getChildren();
       children.forEach((child) => {
         var pathStaysInAbstractionSet = abstractionSet.indexOf(child) !== -1;
@@ -640,6 +660,7 @@ class NodeData {
 class ArgumentData {
   constructor(creating, premises, conclusion) {
     this.id = makeUniqueId();
+    this.visible = true;
     this.creating = creating;
     this.premises = premises;
     this.conclusion = conclusion;
@@ -653,6 +674,7 @@ class ArgumentData {
 class ConflictData {
   constructor(nodes) {
     this.id = makeUniqueId();
+    this.visible = true;
     this.nodes = nodes;
   }
 
@@ -863,6 +885,33 @@ const ArgGraph = () => {
     setArgs(args);
   };
 
+  const toggleAbstracted = (id) => {
+    var node = nodes[id];
+    node.isAbstracted = !node.isAbstracted;
+    var desiredAbstractionMode = node.isAbstracted;
+    var abstractionSet = node.getAbstractionSet();
+    if (abstractionSet === null) return;
+    abstractionSet.forEach((abstractedNode) => {
+      abstractedNode.visible = desiredAbstractionMode;
+      abstractedNode.selected = false;
+    });
+    var abstractedEdges = [];
+    abstractionSet.forEach((abstractedNode) => {
+      var edges = abstractedNode.getConnectedEdgesAsList();
+      edges.forEach((edge) => {
+        var alreadySeen = abstractedEdges.indexOf(edge) !== -1;
+        if (!alreadySeen) abstractedEdges.push(edge);
+      });
+    });
+    abstractedEdges.forEach((edge) => {
+      edge.visible = desiredAbstractionMode;
+      edge.selected = false;
+    });
+    setNodes(nodes);
+    setArgs(args);
+    setConflicts(conflicts);
+  };
+
   var creationEditorMenuElements = [];
   if (editorMode.create.node)
     creationEditorMenuElements.push(
@@ -930,11 +979,13 @@ const ArgGraph = () => {
               <Node
                 key={i}
                 id={nodeKey}
+                visible={node.visible}
                 x={node.x}
                 y={node.y}
                 text={node.text}
                 selected={node.selected}
                 toggleSelected={toggleSelected}
+                toggleAbstracted={toggleAbstracted}
                 updateNodePos={updateNodePos}
                 updateNodeText={updateNodeText}
                 deleteNode={deleteNode}
@@ -955,6 +1006,7 @@ const ArgGraph = () => {
               <Argument
                 key={i}
                 id={argKey}
+                visible={arg.visible}
                 mousePos={mousePos}
                 creating={arg.creating}
                 premises={arg.premises}
@@ -965,7 +1017,12 @@ const ArgGraph = () => {
           {Object.keys(conflicts).map((conflictKey, i) => {
             let conf = conflicts[conflictKey];
             return (
-              <Conflict key={i} id={conflictKey} nodes={conf.nodes}></Conflict>
+              <Conflict
+                key={i}
+                id={conflictKey}
+                visible={conf.visible}
+                nodes={conf.nodes}
+              ></Conflict>
             );
           })}
           <EditorMenu
