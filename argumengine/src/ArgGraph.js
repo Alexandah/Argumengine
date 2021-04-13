@@ -911,6 +911,9 @@ const ArgGraph = () => {
     });
     abstractedEdges.forEach((edge) => {
       edge.visible = !desiredAbstractionMode;
+      edge.getConnectedNodes().forEach((premise) => {
+        if (!premise.visible) edge.visible = false;
+      });
       edge.selected = false;
     });
     setNodes(nodes);
