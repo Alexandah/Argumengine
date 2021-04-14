@@ -608,6 +608,11 @@ class NodeData {
     return parents;
   }
 
+  isOrphan() {
+    var parents = this.getParents();
+    return parents.length === 0;
+  }
+
   getAncestors() {
     const recurseAncestors = (node) => {
       var parents = node.getParents();
@@ -920,6 +925,10 @@ const ArgGraph = () => {
     setArgs(args);
     setConflicts(conflicts);
     return true;
+  };
+
+  const getOrphanNodes = () => {
+    return nodes.filter((node) => node.isOrphan());
   };
 
   var creationEditorMenuElements = [];
