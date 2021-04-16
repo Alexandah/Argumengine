@@ -12,7 +12,7 @@ import {
 } from "react-konva";
 import Konva from "konva";
 import useImage from "use-image";
-import { NetworkCellRounded } from "@material-ui/icons";
+import { FilterTiltShiftSharp, NetworkCellRounded } from "@material-ui/icons";
 
 const defaultEditorMode = {
   create: { node: false, edge: false },
@@ -27,6 +27,25 @@ function getRelativePosition(startPos, destPos) {
 
 function makeUniqueId() {
   return +new Date();
+}
+
+function removeDuplicates(list) {
+  var occurences = {};
+  list.forEach((item) => {
+    if (occurences[item] === undefined) occurences[item] = 1;
+    else occurences[item]++;
+  });
+  list.forEach((item, i) => {
+    if (occurences[item] > 1) {
+      occurences[item]--;
+      delete list[i];
+    }
+  });
+  return list.filter((item) => item !== undefined);
+}
+
+function isEmpty(obj) {
+  return Object.keys(obj).length === 0;
 }
 
 function deepcopy(object) {
@@ -651,13 +670,41 @@ class NodeData {
     return false;
   }
 
+  getCollectiveAbstractionSet(nodesAbstractedTo) {
+    var abstractionSet = [];
+    nodesAbstractedTo.forEach((node) => {
+      abstractionSet = abstractionSet.concat(node.getAncestors());
+    });
+    //    abstractionSet = removeDuplicates(abstractionSet);
+    var isValid = true;
+    abstractionSet.forEach((node) => {
+      var children = node.getChildren();
+      children.forEach((child) => {
+        var pathStaysInAbstractionSet = abstractionSet.indexOf(child) !== -1;
+        var pathGoesToAbstractedNode = false;
+        nodesAbstractedTo.forEach((node) => {
+          if (child === node) pathGoesToAbstractedNode = true;
+        });
+        var pathIsValid = pathStaysInAbstractionSet || pathGoesToAbstractedNode;
+        if (!pathIsValid) isValid = false;
+      });
+    });
+    if (!isValid) abstractionSet = null;
+    return abstractionSet;
+  }
+
+  getAbstractionSet() {
+    console.log("getAbstractionSet: ", [this]);
+    return this.getCollectiveAbstractionSet([this]);
+  }
+  /**
   getAbstractionSet() {
     var abstractionSet = this.getAncestors();
     var isValid = true;
     abstractionSet.forEach((node) => {
       var children = node.getChildren();
       children.forEach((child) => {
-        var pathStaysInAbstractionSet = abstractionSet.indexOf(child) !== 0;
+        var pathStaysInAbstractionSet = abstractionSet.indexOf(child) !== -1;
         var pathGoesToAbstractedNode = child === this;
         var pathIsValid = pathStaysInAbstractionSet || pathGoesToAbstractedNode;
         if (!pathIsValid) isValid = false;
@@ -666,6 +713,7 @@ class NodeData {
     if (!isValid) abstractionSet = null;
     return abstractionSet;
   }
+  */
 }
 
 class ArgumentData {
@@ -694,21 +742,97 @@ class ConflictData {
   }
 }
 
+class ZoomAbstractionLevel {
+  constructor(abstractedNodes, prev, next) {
+    this.abstractedNodes = abstractedNodes;
+    this.prev = prev;
+    this.next = next;
+  }
+
+  getAbstractedNodesAsList() {
+    return [...this.abstractedNodes];
+  }
+}
+
+class ZoomHierarchy {
+  constructor(orphanNodes) {
+    this.root = new ZoomAbstractionLevel(new Set(), null, null);
+    this.currentLevel = this.root;
+
+    var toAbstract = [].concat(orphanNodes);
+    var abstracted = new Set();
+    var currentLevel = this.root;
+    while (toAbstract.length > 0) {
+      var currentAbstractionRound = [];
+      var tryAgain = [];
+      toAbstract.forEach((node) => {
+        var parents = node.getParents();
+        currentAbstractionRound.push(node);
+        for (var i = 0; i < parents.length; i++) {
+          var parent = parents[i];
+          var parentWasAbstracted = abstracted.has(parent);
+          if (!parentWasAbstracted) {
+            var nodeTryAgain = currentAbstractionRound.pop();
+            tryAgain.push(nodeTryAgain);
+            break;
+          }
+        }
+      });
+      currentAbstractionRound.forEach((node) => {
+        abstracted.add(node);
+      });
+      var nextGeneration = [];
+      currentAbstractionRound.forEach((node) => {
+        var children = node.getChildren();
+        nextGeneration.concat(children);
+      });
+      toAbstract = tryAgain.concat(nextGeneration);
+      toAbstract = removeDuplicates(toAbstract);
+      var nextLevel = new ZoomAbstractionLevel(abstracted, currentLevel, null);
+      currentLevel.next = nextLevel;
+      currentLevel = nextLevel;
+    }
+  }
+
+  goUp() {
+    var nextLevel = this.currentLevel.next;
+    if (nextLevel !== null) this.currentLevel = nextLevel;
+  }
+
+  goDown() {
+    var prevLevel = this.currentLevel.prev;
+    if (prevLevel !== null) this.currentLevel = prevLevel;
+  }
+
+  getAbstractedNodes() {
+    return this.currentLevel.getAbstractedNodesAsList();
+  }
+}
+
 const ArgGraph = () => {
   const [editorMode, setEditorMode] = useState(defaultEditorMode);
 
-  const [nodes, setNodes] = React.useState({});
+  const [nodes, setNodes] = useState({});
+  const getOrphanNodes = () => {
+    return nodes.filter((node) => node.isOrphan());
+  };
   const [args, setArgs] = React.useState({});
   const [conflicts, setConflicts] = React.useState({});
 
   const [argBeingCreated, setArgBeingCreated] = React.useState(null);
 
-  const [zoomHierarchy, setZoomHierarchy] = React.useState([]);
-  const [
-    currentZoomHierarchyLevel,
-    setCurrentZoomHierarchyLevel,
-  ] = React.useState(0);
-  const [nodeGroups, setNodeGroups] = React.useState([]);
+  const [zoomHierarchy, setZoomHierarchy] = React.useState(null);
+  const updateZoomHierarchy = () => {
+    console.log("help help, im getting fucked in the ass!!!!");
+    if (isEmpty(nodes)) return;
+    var orphans = nodes.filter((node) => node.isOrphan());
+    setZoomHierarchy(new ZoomHierarchy(orphans));
+  };
+  useEffect(updateZoomHierarchy, [nodes, args, conflicts]);
+
+  useEffect(() => {
+    console.log("fuck me daddy");
+  }, [nodes]);
 
   const initialCanvasSize = {
     width: window.innerWidth,
@@ -764,6 +888,7 @@ const ArgGraph = () => {
     console.log(nodes);
     console.log(args);
     console.log(conflicts);
+    console.log(zoomHierarchy);
     nodes[selectedId].selected = !nodes[selectedId].selected;
     setNodes(nodes);
     console.log("adjusted mouse pos: ", mousePos);
@@ -927,9 +1052,7 @@ const ArgGraph = () => {
     return true;
   };
 
-  const getOrphanNodes = () => {
-    return nodes.filter((node) => node.isOrphan());
-  };
+  const toggleMultiAbstracted = (ids) => {};
 
   var creationEditorMenuElements = [];
   if (editorMode.create.node)
