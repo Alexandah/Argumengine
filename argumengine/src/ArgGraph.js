@@ -823,16 +823,11 @@ const ArgGraph = () => {
 
   const [zoomHierarchy, setZoomHierarchy] = React.useState(null);
   const updateZoomHierarchy = () => {
-    console.log("help help, im getting fucked in the ass!!!!");
     if (isEmpty(nodes)) return;
     var orphans = nodes.filter((node) => node.isOrphan());
     setZoomHierarchy(new ZoomHierarchy(orphans));
   };
   useEffect(updateZoomHierarchy, [nodes, args, conflicts]);
-
-  useEffect(() => {
-    console.log("fuck me daddy");
-  }, [nodes]);
 
   const initialCanvasSize = {
     width: window.innerWidth,
